@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { parseAgenda } from './agenda.ts'
 import { applyEdits, parseClock, sortRows, withTimes } from './checklist.ts'
 import { addDaysTo } from './dates.ts'
-import { classifyEvents, parseIcs } from './ics.ts'
+import { classifyEvents } from './ics.ts'
 import { mergeChecklist } from './merge.ts'
 import { useSources, useStore } from './store.ts'
 import type { Excluded, Row } from './types.ts'
@@ -16,7 +16,7 @@ export function useCalendarEvents() {
   const calendars = useSources((s) => s.calendars)
   return useMemo(() => {
     const perFile = calendars.map((c) => {
-      const { events, problems } = classifyEvents(parseIcs(c.text, c.name))
+      const { events, problems } = classifyEvents(c.events)
       return { name: c.name, events, problems }
     })
     return {

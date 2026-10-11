@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import type { Edits } from './checklist.ts'
+import type { RawEvent } from './ics.ts'
 import type { Field, Row } from './types.ts'
 import { FIELDS } from './types.ts'
 
-export type CalendarFile = { name: string; text: string }
+export type CalendarFile = { name: string; events: RawEvent[] }
 
 export type UserData = {
   /** Lo escrito a mano sobre cada fila */
@@ -84,7 +85,13 @@ export const useSources = create<SourceState & SourceActions>()(
         set((s) => ({ calendars: [...s.calendars.filter((c) => !files.some((f) => f.name === c.name)), ...files] })),
       removeCalendar: (name) => set((s) => ({ calendars: s.calendars.filter((c) => c.name !== name) })),
     }),
-    { name: 'quiro-sources-v1', version: 1, storage: safeStorage },
+    {
+      name: 'quiro-sources-v1',
+      version: 2,
+      storage: safeStorage,
+      // v1 guardaba el .ics entero; ahora se guardan solo los eventos que sirven (hay que volver a cargar los calendarios)
+      migrate: (persisted) => ({ agenda: (persisted as { agenda?: SourceState['agenda'] }).agenda ?? null, calendars: [] }),
+    },
   ),
 )
 

@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { parseAgenda, parseDate } from '../src/agenda.ts'
 import { sheetTsv, sortRows, withTimes } from '../src/checklist.ts'
 import { parseCsv } from '../src/csv.ts'
-import { classifyEvents, parseIcs } from '../src/ics.ts'
+import { classifyEvents, parseDescription, parseIcs } from '../src/ics.ts'
 import { mergeChecklist, nameMatch } from '../src/merge.ts'
 
 // Datos inventados: nunca poner pacientes reales en el repo
@@ -17,11 +17,18 @@ const agendaCsv = [
   '5/09/2026 10:00:00,01/062026,REPROGRAMADA RITA,500/00,90,CATARATA,DIAZ,-,DERECHO,-,5555,,,LOCAL + APOYO,No,,.,.,',
 ].join('\n')
 
-const ics = (name: string, events: [string, string][]) =>
+const ics = (name: string, events: [string, string, string?][]) =>
   [
     'BEGIN:VCALENDAR',
     `X-WR-CALNAME:${name}`,
-    ...events.flatMap(([d, t]) => ['BEGIN:VEVENT', `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${+d + 1}`, `SUMMARY:${t}`, 'END:VEVENT']),
+    ...events.flatMap(([d, t, desc]) => [
+      'BEGIN:VEVENT',
+      `DTSTART;VALUE=DATE:${d}`,
+      `DTEND;VALUE=DATE:${+d + 1}`,
+      `SUMMARY:${t}`,
+      ...(desc ? [`DESCRIPTION:${desc}`] : []),
+      'END:VEVENT',
+    ]),
     'END:VCALENDAR',
   ].join('\r\n')
 
@@ -42,6 +49,19 @@ test('parseAgenda: columnas corridas y marcadores de "nada"', () => {
   assert.equal(a.notes, 'GANCHOS, ojo')
   assert.equal(parseAgenda(agendaCsv)[1].assistant, '')
   assert.equal(parseAgenda(agendaCsv)[1].duration, 30)
+})
+
+test('parseDescription: formato actual y viejo, reconociendo cada dato por su forma', () => {
+  assert.deepEqual(parseDescription('IZQUIERDO / +21.00 / 72763/00 / 1132138847 (TENGO WPP)'), {
+    eye: 'IZQUIERDO', diopters: '+21.00', hc: '72763/00', phone: '1132138847 (TENGO WPP)', name: '',
+  })
+  assert.deepEqual(parseDescription('DERECHO /  / 602720 / 1122683163 \\; 15-3958'), {
+    eye: 'DERECHO', diopters: '', hc: '602720', phone: '1122683163 \\; 15-3958', name: '',
+  })
+  const old = parseDescription('OI / CORULO OSCAR / 59628/00 / 42643381 o 1168029951')
+  assert.equal(old.name, 'CORULO OSCAR')
+  assert.equal(old.hc, '59628/00')
+  assert.equal(old.eye, 'OI')
 })
 
 test('nameMatch: orden de palabras y nombres incompletos', () => {
@@ -120,4 +140,34 @@ test('sheetTsv: formato de la planilla, días del último al primero', () => {
   assert.equal(lines[1][15], 'PREQUI')
   assert.equal(lines.at(-3)![5], 'MARTES')
   assert.ok(lines.every((l) => l.length === 21))
+})
+
+test('calendar real: la HC de la descripción cruza aunque el nombre esté mal escrito, y el formato viejo se entiende', () => {
+  const agenda = parseAgenda(
+    [
+      HEADER,
+      '1/09/2026 10:00:00,13/10/2026,PEREZ JUAN CARLOS,100/00,60,CATARATA,DIAZ,LUNA,DERECHO,-,1111,LIO,+21.00,LOCAL + APOYO,No,,70,123,',
+      '2/09/2026 10:00:00,13/10/2026,PEREZ JUAN CARLOS,101/00,60,CATARATA,DIAZ,LUNA,DERECHO,-,2222,LIO,+20.00,LOCAL + APOYO,No,,70,123,',
+    ].join('\n'),
+  )
+  const raw = [
+    ...parseIcs(ics('AGENDA', [['20261013', 'CATARATA / PEREZ J / DIAZ / LUNA', 'DERECHO / +20.00 / 101/00 / 2222']])),
+    // la misma cirugía cargada también en el otro calendario, con el formato viejo
+    ...parseIcs(ics('AGENDA QUIRURGICA', [['20261013', 'CATARATA / DIAZ', 'OD / PEREZ JUAN CARLOS / 101/00 / 2222']])),
+  ]
+  const { events } = classifyEvents(raw)
+  assert.equal(events.length, 2)
+  assert.equal(events[1].name, 'PEREZ JUAN CARLOS')
+  const res = mergeChecklist({ agenda, events, problems: [], from: '2026-10-12', to: '2026-10-18' })
+  assert.equal(res.rows.length, 1)
+  assert.equal(res.rows[0].hc, '101/00')
+  assert.equal(res.rows[0].diopters, '+20.00')
+  assert.equal(res.rows[0].warning, undefined)
+  assert.deepEqual(res.excluded.map((x) => x.row.hc), ['100/00'])
+})
+
+test('un evento con palabras de cirugía pero sin formato se avisa; el resto (feriados, simposios) se ignora', () => {
+  const { events, problems } = classifyEvents(parseIcs(ics('AGENDA', [['20261014', 'CATARAT BROCHARD ORTELLADO'], ['20261014', 'SIMPOSIO'], ['20261012', 'FERIADO']])))
+  assert.equal(events.length, 0)
+  assert.deepEqual(problems.map((p) => p.title), ['CATARAT BROCHARD ORTELLADO'])
 })

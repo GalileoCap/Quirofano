@@ -67,6 +67,9 @@ function fromAgenda(a: AgendaRow, date: string, key: string, source: Row['source
   }
 }
 
+/** HC sin espacios ni separadores raros: '52017 / 00' y '52017:00' son la misma. */
+const normHc = (s: string) => s.toUpperCase().replace(/\s+/g, '').replace(/[:-]/g, '/')
+
 const fmtDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
 /** Cirugías de la agenda más probables para un evento del calendar, de mejor a peor. */
@@ -74,12 +77,14 @@ function candidates(e: CalEvent, agenda: AgendaRow[], used: Set<AgendaRow>) {
   const out: { row: AgendaRow; score: number }[] = []
   for (const row of agenda) {
     if (used.has(row)) continue
+    // la HC identifica a la persona mejor que el nombre (que se escribe de mil maneras)
+    const sameHc = !!e.hc && !!row.hc && normHc(e.hc) === normHc(row.hc)
     const m = nameMatch(e.name, row.name)
-    if (!m) continue
+    if (!m && !sameHc) continue
     const sameDate = row.date === e.date
-    // un nombre suelto ("GOMEZ") solo alcanza si la fecha también coincide
-    if (m === 1 && tokens(e.name).length < 2 && !sameDate) continue
-    const score = m * 10 + (sameDate ? 5 : 0) + (normName(row.surgery) === normName(e.surgery) ? 1 : 0)
+    // un nombre suelto ("GOMEZ") solo alcanza si la fecha o la HC también coinciden
+    if (!sameHc && m === 1 && tokens(e.name).length < 2 && !sameDate) continue
+    const score = (sameHc ? 30 : 0) + m * 10 + (sameDate ? 5 : 0) + (normName(row.surgery) === normName(e.surgery) ? 1 : 0)
     out.push({ row, score })
   }
   // a igual puntaje, la carga más reciente (es la que corrige a las anteriores)
@@ -88,7 +93,13 @@ function candidates(e: CalEvent, agenda: AgendaRow[], used: Set<AgendaRow>) {
 
 export function mergeChecklist({ agenda, events, problems, from, to }: MergeInput): MergeResult {
   const inRange = (d: string | null): d is string => !!d && d >= from && d <= to
-  const surgeries = events.filter((e) => e.kind === 'surgery' && inRange(e.date))
+  // la misma cirugía puede estar en dos calendarios: se cuenta una sola vez
+  const seenEvents = new Set<string>()
+  const surgeries = events.filter((e) => {
+    if (e.kind !== 'surgery' || !inRange(e.date)) return false
+    const id = `${e.date}|${e.hc ? normHc(e.hc) : normName(e.name)}|${normName(e.surgery)}`
+    return !seenEvents.has(id) && !!seenEvents.add(id)
+  })
   const suspensions = events.filter((e) => e.kind === 'suspension' && inRange(e.date))
   const calendarCovers = surgeries.length > 0
   const warnings: string[] = []
@@ -117,8 +128,8 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
       suspendedRows.add(hit.row)
       excluded.push({ row: fromAgenda(hit.row, s.date, uniqueKey(s.date, hit.row), 'agenda'), reason: 'suspended' })
     } else {
-      const row = emptyRow(s.date, uniqueKey(s.date, { hc: '', name: s.name }), 'calendar')
-      Object.assign(row, { name: s.name, surgery: s.surgery, surgeon: s.surgeon, assistant: s.assistant })
+      const row = emptyRow(s.date, uniqueKey(s.date, { hc: s.hc, name: s.name }), 'calendar')
+      Object.assign(row, { name: s.name, surgery: s.surgery, surgeon: s.surgeon, assistant: s.assistant, hc: s.hc, eye: s.eye })
       excluded.push({ row, reason: 'suspended' })
     }
   }
@@ -138,15 +149,22 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
   for (const e of surgeries) {
     const [best, second] = matches.get(e)!
     if (!best) {
-      const row = emptyRow(e.date, uniqueKey(e.date, { hc: '', name: e.name }), 'calendar')
+      const row = emptyRow(e.date, uniqueKey(e.date, { hc: e.hc, name: e.name }), 'calendar')
       Object.assign(row, { name: e.name, surgery: e.surgery, surgeon: e.surgeon, assistant: e.assistant })
+      Object.assign(row, { eye: e.eye, diopters: e.diopters, hc: e.hc, phone: e.phone })
       row.warning = 'Está en el calendar pero no encontré al paciente en la agenda: completá los datos.'
       rows.push(row)
       continue
     }
     const a = best.row
     const row = fromAgenda(a, e.date, uniqueKey(e.date, a), 'both')
+    // lo que la agenda no tiene y el calendar sí
+    row.eye ||= e.eye
+    row.diopters ||= e.diopters
+    row.hc ||= e.hc
+    row.phone ||= e.phone
     const notes: string[] = []
+    if (e.hc && a.hc && normHc(e.hc) !== normHc(a.hc)) notes.push(`La HC del calendar (${e.hc}) no es la de la agenda (${a.hc}): ¿es la misma persona?`)
     if (a.date !== e.date)
       notes.push(
         a.date

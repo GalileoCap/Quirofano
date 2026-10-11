@@ -39,6 +39,11 @@ export type CalEvent = {
   name: string
   surgeon: string
   assistant: string
+  /** De la descripción del evento ("OJO / DIOPTRÍAS / HC / TELÉFONO"); vacío si no la trae */
+  eye: string
+  diopters: string
+  hc: string
+  phone: string
 }
 
 /** Un evento de un calendario de cirugías que no tiene el formato esperado (se avisa en vez de ignorarlo). */

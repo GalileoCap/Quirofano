@@ -149,9 +149,14 @@ export default function ChecklistView() {
       {excluded.length > 0 && (
         <section className="card card-border bg-base-100">
           <div className="card-body gap-2 p-3">
-            <h3 className="card-title text-base">Sin incluir ({excluded.length})</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="card-title flex-1 text-base">Sin incluir ({excluded.length})</h3>
+              <button className="btn btn-xs" onClick={() => excluded.forEach((x) => x.reason !== 'suspended' && setIncluded(x.row.key, true))}>
+                Incluir todas
+              </button>
+            </div>
             <p className="text-xs text-base-content/60">
-              Están en la agenda con fecha de esta semana pero no entran al checklist. Incluilas si corresponde.
+              Están en la agenda con fecha de esta semana pero no en el calendar (o las sacaste vos o están suspendidas). Incluilas si corresponde.
             </p>
             <ul className="flex flex-col gap-1">
               {excluded.map(({ row, reason }) => (
