@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: false;
+}
+@plugin "daisyui/theme" {
+  name: "rosa";
+  default: true;
+  color-scheme: light;
+  --color-base-100: oklch(99.5% 0.006 350);
+  --color-base-200: oklch(97% 0.016 350);
+  --color-base-300: oklch(92.5% 0.032 350);
+  --color-base-content: oklch(31% 0.05 350);
+  --color-primary: oklch(69% 0.17 355);
+  --color-primary-content: oklch(99% 0.01 350);
+  --color-secondary: oklch(77% 0.1 310);
+  --color-secondary-content: oklch(28% 0.06 310);
+  --color-accent: oklch(82% 0.09 40);
+  --color-accent-content: oklch(32% 0.06 40);
+  --color-neutral: oklch(40% 0.06 350);
+  --color-neutral-content: oklch(97% 0.01 350);
+  --color-info: oklch(78% 0.1 240);
+  --color-info-content: oklch(28% 0.06 240);
+  --color-success: oklch(80% 0.12 165);
+  --color-success-content: oklch(28% 0.06 165);
+  --color-warning: oklch(87% 0.12 85);
+  --color-warning-content: oklch(32% 0.07 85);
+  --color-error: oklch(63% 0.21 22);
+  --color-error-content: oklch(98% 0.01 22);
+  --radius-selector: 1rem;
+  --radius-field: 0.75rem;
+  --radius-box: 1.1rem;
+  --border: 1px;
+  --depth: 0;
+}
+
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+body {
+  background: var(--color-base-200);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* sin el retraso ni el zoom del doble toque */
+}
+
+/* Fondo con degradados fijo al scrollear. Va en su propia capa fija y no con `background-attachment: fixed`: en Safari
+   de iOS eso se repinta entero en cada cuadro del scroll y lo vuelve entrecortado. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 30rem at 0% -10%, color-mix(in oklab, var(--color-primary) 13%, transparent), transparent),
+    radial-gradient(50rem 28rem at 100% 0%, color-mix(in oklab, var(--color-secondary) 14%, transparent), transparent);
+  transform: translateZ(0);
+}
+
+/* Barra de navegación inferior (teléfono) */
+.dock { z-index: 40; background: var(--color-base-100); border-top: 1px solid var(--color-base-300); }
+.dock .dock-active { color: var(--color-primary); }
+.dock .dock-active::after { background: var(--color-primary); }
+
+/* Tarjetas suaves, con un borde rosado y sombra casi imperceptible */
+.card-border {
+  border-color: var(--color-base-300);
+  box-shadow: 0 6px 20px -12px color-mix(in oklab, var(--color-primary) 45%, transparent);
+}
+.btn { font-weight: 700; }
+.tabs-box { background: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100)); }
+.tabs-box .tab-active { color: var(--color-primary-content) !important; background: var(--color-primary) !important; }
+
+/* Teléfono: los inputs en 16px evitan que iOS haga zoom al enfocarlos */
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+/* Hoja inferior de los diálogos (teléfono): que no quede bajo la barra de gestos */
+.modal-box { padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+
+/* Campos de las filas del checklist: se ven como texto hasta que se tocan */
+.cell-input {
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  background: color-mix(in oklab, var(--color-primary) 6%, var(--color-base-100));
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+}
+.cell-input:hover { border-color: var(--color-base-300); }
+.cell-input:focus { outline: none; border-color: var(--color-primary); background: var(--color-base-100); }
+.cell-input::placeholder { color: color-mix(in oklab, var(--color-base-content) 35%, transparent); }
