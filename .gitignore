@@ -4,3 +4,5 @@ dist
 backups/
 # datos de pacientes: nunca al repo
 samples/
+# estado de trabajo de la sesión (/session-kit:handoff)
+CLAUDE.local.md

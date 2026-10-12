@@ -1,0 +1,6 @@
+{
+  "tells": {
+    "readers": ["typescript"],
+    "languages": { "src": "es", "tests": "es" }
+  }
+}
