@@ -423,20 +423,20 @@ test('store: dentro de las novedades se descartan los items con kind desconocido
   assert.deepEqual(useStore.getState().news, { at: '2026-10-12T10:00:00Z', items: [bueno] })
 })
 
-test('sources: la versión 1 conserva la agenda y descarta los calendarios guardados con el formato viejo, sin copia de seguridad', async () => {
-  assert.ok(SOURCES_VERSION >= 2)
+test('sources: la versión actual conserva la agenda y los calendarios, sin copia de seguridad', async () => {
   reset()
-  saveSources({ agenda: { name: 'a.csv', text: 'x' }, calendars: [{ name: 'c.ics', events: [] }] }, 1)
+  const calendars: CalendarFile[] = [{ name: 'c.ics', events: [event()] }]
+  saveSources({ agenda: { name: 'a.csv', text: 'x' }, calendars }, SOURCES_VERSION)
   await useSources.persist.rehydrate()
   assert.deepEqual(useSources.getState().agenda, { name: 'a.csv', text: 'x' })
-  assert.deepEqual(useSources.getState().calendars, [])
+  assert.deepEqual(useSources.getState().calendars, calendars)
   assert.deepEqual(copyKeys(), [])
 })
 
-test('sources: la versión 2 conserva los calendarios y no hace copia', async () => {
+test('sources: una versión más nueva se lee con lo que se reconoce y no hace copia', async () => {
   reset()
   const calendars: CalendarFile[] = [{ name: 'c.ics', events: [event()] }]
-  saveSources({ agenda: { name: 'a.csv', text: 'x' }, calendars }, 2)
+  saveSources({ agenda: { name: 'a.csv', text: 'x' }, calendars, nuevo: 'algo' }, SOURCES_VERSION + 1)
   await useSources.persist.rehydrate()
   assert.deepEqual(useSources.getState().agenda, { name: 'a.csv', text: 'x' })
   assert.deepEqual(useSources.getState().calendars, calendars)

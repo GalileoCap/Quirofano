@@ -26,11 +26,8 @@ const isObj = (x: unknown): x is Obj => typeof x === 'object' && x !== null && !
 export const USER_VERSION = 1
 export const USER_MIGRATIONS: Migrations = {}
 
-export const SOURCES_VERSION = 2
-export const SOURCES_MIGRATIONS: Migrations = {
-  // v1 guardaba el .ics entero; ahora se guardan solo los eventos que sirven (hay que volver a cargar los calendarios)
-  1: (state) => ({ agenda: state.agenda, calendars: [] }),
-}
+export const SOURCES_VERSION = 1
+export const SOURCES_MIGRATIONS: Migrations = {}
 
 /**
  * Lleva `state` de la versión `from` a la `to` aplicando los pasos en orden. Un estado de una versión más nueva

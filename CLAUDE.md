@@ -39,7 +39,7 @@ Todo vive en `localStorage` con zustand persist, en dos claves (`src/store.ts`):
 
 Todo lo que tenga que ver con la forma de lo guardado está en `src/persist.ts`. Para cambiarla:
 
-**Una migración por deploy, no una por cambio.** Entre un deploy y el siguiente, todos los cambios a la forma de lo guardado se juntan en un solo paso (una sola subida de versión). Mientras el cambio no se deployó, ese paso se sigue editando en vez de sumar otro, y la versión no vuelve a subir. Lo deployado manda: no se toca un paso que ya salió, se agrega uno nuevo. Hoy no hay nada deployado, así que `USER_VERSION` (1) y `SOURCES_VERSION` (2) son la base de la primera salida.
+**Una migración por deploy, no una por cambio.** Entre un deploy y el siguiente, todos los cambios a la forma de lo guardado se juntan en un solo paso (una sola subida de versión). Mientras el cambio no se deployó, ese paso se sigue editando en vez de sumar otro, y la versión no vuelve a subir. Lo deployado manda: no se toca un paso que ya salió, se agrega uno nuevo. Hoy no hay nada deployado, así que `USER_VERSION` (1) y `SOURCES_VERSION` (1) son la base de la primera salida.
 
 1. Subir `USER_VERSION` (o `SOURCES_VERSION`), solo si desde el último deploy no se había subido ya.
 2. Agregar en `USER_MIGRATIONS` (o `SOURCES_MIGRATIONS`) el paso que lleva de la versión anterior a la nueva; la clave es la versión de la que parte. `runMigrations` los encadena en orden y lanza si falta uno.
