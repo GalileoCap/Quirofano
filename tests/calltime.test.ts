@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { CALL_HOURS_BEFORE, callTime } from '../src/tasks.ts'
 
 // La hora de citación se muestra, nunca se guarda: el Horario es texto libre y
-// solo se lee cuando es exactamente una hora (regla 1 de CLAUDE.md)
+// solo se lee cuando es una hora o un rango de dos horas (regla 1 de CLAUDE.md)
 
 const expectTimes = (pairs: [string, string][]) => {
   for (const [input, expected] of pairs) assert.equal(callTime(input), expected, JSON.stringify(input))
@@ -41,6 +41,17 @@ test('el punto también separa horas de minutos', () => {
   ])
 })
 
+test('la coma separa horas de minutos, sola o en cada extremo de un rango, y la coma de texto no', () => {
+  expectTimes([
+    ['9,30', '7:30'],
+    ['15,00', '13:00'],
+    ['14,00-16,00', '12:00'],
+    ['15,30-16,00', '13:30'],
+    ['8,30 hs', '6:30'],
+  ])
+  expectNull(['9,5', '9,75', '9,00-25,00', '9,', ',30', '1,30', '9:00, si hay lugar'])
+})
+
 test('el sufijo h, hs o hs. se acepta con o sin espacio antes', () => {
   expectTimes([
     ['8h', '6:00'],
@@ -76,8 +87,33 @@ test('texto que no es una hora no da nada', () => {
   expectNull(['a confirmar', 'mañana'])
 })
 
-test('una hora con rangos o notas alrededor no se lee con certeza', () => {
-  expectNull(['9:00 a 11:00', '9:00, si hay lugar', '9-10'])
+test('una hora con notas alrededor no se lee con certeza', () => {
+  expectNull(['9:00, si hay lugar', '9 a las 11', '9 y 10'])
+})
+
+test('un rango resta las horas al inicio y el fin no influye en el resultado', () => {
+  expectTimes([
+    ['8-8.30', '6:00'],
+    ['9-10', '7:00'],
+    ['9:00 a 11:00', '7:00'],
+    ['8:30 - 9', '6:30'],
+    ['10:15–11:00', '8:15'],
+    ['8 a 9hs', '6:00'],
+    ['8hs-9hs', '6:00'],
+    [' 9 - 10 ', '7:00'],
+  ])
+})
+
+test('un rango no exige que el fin sea posterior al inicio', () => {
+  expectTimes([['10-9', '8:00']])
+})
+
+test('un rango cuyo inicio caería antes de medianoche no se calcula', () => {
+  expectNull(['1:30-3', '1-5'])
+})
+
+test('un rango con el fin inválido, incompleto o con más de dos horas no da nada', () => {
+  expectNull(['9-25', '9-10:75', '9-', '-9', '9-10-11', '9:00 a'])
 })
 
 test('horas o minutos fuera de rango no dan nada', () => {

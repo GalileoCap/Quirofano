@@ -76,7 +76,7 @@ export default function SurgeryCheckDialog({
               <>
                 Citar a las <span className="text-lg font-bold tabular-nums">{citado}</span>{' '}
                 <span className="text-base-content/60">
-                  ({CALL_HOURS_BEFORE} h antes de las {row.time.trim()})
+                  ({CALL_HOURS_BEFORE} h antes del horario {row.time.trim()})
                 </span>
               </>
             ) : (

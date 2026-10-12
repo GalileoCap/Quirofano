@@ -163,7 +163,7 @@ function CallDetail({ row }: { row: Row }) {
   return (
     <>
       {citado ? (
-        <span title={`${CALL_HOURS_BEFORE} h antes de las ${row.time.trim()}`}>
+        <span title={`${CALL_HOURS_BEFORE} h antes del horario ${row.time.trim()}`}>
           Citar <span className="font-bold tabular-nums text-base-content">{citado}</span> (cirugía {row.time.trim()})
         </span>
       ) : clean(row.time) ? (

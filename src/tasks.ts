@@ -95,20 +95,30 @@ export const WEEK_FIELDS: Field[] = ['surgery', 'surgeon', 'eye', 'duration', 'n
 /** Horas antes del horario de la cirugía a las que se cita al paciente. */
 export const CALL_HOURS_BEFORE = 2
 
-const CLOCK = /^(\d{1,2})(?:[:.](\d{2}))?(?:\s*hs?\.?)?$/
+const HOUR = String.raw`(\d{1,2})(?:[:.,](\d{2}))?(?:\s*hs?\.?)?`
+const CLOCK = new RegExp(`^${HOUR}(?:\\s*(?:[-–]|a)\\s*${HOUR})?$`)
+
+/** Los minutos desde medianoche de una hora ya leída, o null si no existe (hora mayor a 23 o minutos mayores a 59). */
+const validClock = (hours: string, minutes: string | undefined): number | null => {
+  const h = Number(hours)
+  const m = Number(minutes ?? 0)
+  return h > 23 || m > 59 ? null : h * 60 + m
+}
 
 /**
- * La hora a la que se cita al paciente: `CALL_HOURS_BEFORE` horas antes del horario escrito. Es solo para mostrar, no se
- * guarda en ningún campo (el horario lo escribe la persona). Si el horario no es una hora clara (texto, rangos, notas) o la
- * cita caería antes de medianoche, no se calcula nada.
+ * La hora a la que se cita al paciente: `CALL_HOURS_BEFORE` horas antes del horario escrito. Con un rango («8-8.30»,
+ * «9:00 a 11:00») se resta al inicio. Es solo para mostrar, no se guarda en ningún campo (el horario lo escribe la
+ * persona). Si el horario no es una hora o un rango claros (texto, notas) o la cita caería antes de medianoche, no se
+ * calcula nada.
  */
 export function callTime(time: string): string | null {
   const m = CLOCK.exec(time.trim())
   if (!m) return null
-  const hours = Number(m[1])
-  const minutes = Number(m[2] ?? 0)
-  if (hours > 23 || minutes > 59) return null
-  const total = hours * 60 + minutes - CALL_HOURS_BEFORE * 60
+  const start = validClock(m[1]!, m[2])
+  // el fin de un rango tiene que ser una hora válida, aunque no entre en la cuenta
+  const endOk = m[3] === undefined || validClock(m[3], m[4]) !== null
+  if (start === null || !endOk) return null
+  const total = start - CALL_HOURS_BEFORE * 60
   if (total < 0) return null
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
