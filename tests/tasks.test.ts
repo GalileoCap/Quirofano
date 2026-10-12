@@ -35,13 +35,14 @@ const keys = (items: { key: string }[]) => items.map((i) => i.key)
 
 // definiciones
 
-test('hay tres tareas con ids únicos: valija y lentes de la semana (1 día antes), llamar por cirugía (2 días antes)', () => {
+test('hay cuatro tareas con ids únicos: valija, lentes y datos de la semana (1 día antes), llamar por cirugía (2 días antes)', () => {
   assert.equal(new Set(TASK_DEFS.map((d) => d.id)).size, TASK_DEFS.length)
   assert.deepEqual(
     TASK_DEFS.map((d) => [d.id, d.scope, d.daysBefore]),
     [
       ['valija', 'week', 1],
       ['lentes', 'week', 1],
+      ['datos', 'week', 1],
       ['llamar', 'surgery', 2],
     ],
   )
@@ -65,11 +66,11 @@ test('hecha gana sobre todo; si no, vencida antes de la fecha, "hoy" el mismo d�
 
 // tareas de la semana
 
-test('las tareas de la semana son solo las dos semanales, en el orden de las definiciones', () => {
+test('las tareas de la semana son solo las semanales, en el orden de las definiciones', () => {
   const items = weekTasks(MONDAY, {}, '2026-10-01')
-  assert.deepEqual(ids(items), ['valija', 'lentes'])
-  assert.deepEqual(items.map((i) => i.def.scope), ['week', 'week'])
-  assert.deepEqual(items.map((i) => i.state), [NO_TASK, NO_TASK])
+  assert.deepEqual(ids(items), ['valija', 'lentes', 'datos'])
+  assert.deepEqual(items.map((i) => i.def.scope), ['week', 'week', 'week'])
+  assert.deepEqual(items.map((i) => i.state), [NO_TASK, NO_TASK, NO_TASK])
 })
 
 test('las tareas de la semana vencen el domingo anterior al lunes, también al cruzar mes y año', () => {
@@ -82,18 +83,18 @@ test('las tareas de la semana vencen el domingo anterior al lunes, también al c
   for (const [monday, due] of casos) {
     assert.deepEqual(
       weekTasks(monday, {}, '2020-01-01').map((i) => i.due),
-      [due, due],
+      [due, due, due],
       monday,
     )
   }
   // un lunes de fin de año: el domingo anterior sigue en diciembre
-  assert.deepEqual(weekTasks('2025-12-29', {}, '2020-01-01').map((i) => i.due), ['2025-12-28', '2025-12-28'])
+  assert.deepEqual(weekTasks('2025-12-29', {}, '2020-01-01').map((i) => i.due), ['2025-12-28', '2025-12-28', '2025-12-28'])
 })
 
 test('el estado de las tareas de la semana sigue a "hoy": pendiente, hoy y vencida', () => {
-  assert.deepEqual(weekTasks(MONDAY, {}, '2026-10-09').map((i) => i.status), ['pending', 'pending'])
-  assert.deepEqual(weekTasks(MONDAY, {}, '2026-10-11').map((i) => i.status), ['today', 'today'])
-  assert.deepEqual(weekTasks(MONDAY, {}, '2026-10-12').map((i) => i.status), ['overdue', 'overdue'])
+  assert.deepEqual(weekTasks(MONDAY, {}, '2026-10-09').map((i) => i.status), ['pending', 'pending', 'pending'])
+  assert.deepEqual(weekTasks(MONDAY, {}, '2026-10-11').map((i) => i.status), ['today', 'today', 'today'])
+  assert.deepEqual(weekTasks(MONDAY, {}, '2026-10-12').map((i) => i.status), ['overdue', 'overdue', 'overdue'])
 })
 
 test('lo guardado bajo la clave de una tarea de la semana vuelve como su estado, y las otras siguen vacías', () => {
@@ -121,8 +122,8 @@ test('las claves de las tareas de la semana son estables, distintas entre tareas
   assert.equal(new Set(todas).size, todas.length)
 
   const saved = { [a[0]!.key]: { done: true, note: '' } }
-  assert.deepEqual(weekTasks(NEXT_MONDAY, saved, '2026-10-12').map((i) => i.state), [NO_TASK, NO_TASK])
-  assert.deepEqual(weekTasks(MONDAY, saved, '2026-10-12').map((i) => i.state), [{ done: true, note: '' }, NO_TASK])
+  assert.deepEqual(weekTasks(NEXT_MONDAY, saved, '2026-10-12').map((i) => i.state), [NO_TASK, NO_TASK, NO_TASK])
+  assert.deepEqual(weekTasks(MONDAY, saved, '2026-10-12').map((i) => i.state), [{ done: true, note: '' }, NO_TASK, NO_TASK])
 })
 
 // tareas por cirugía
@@ -242,7 +243,7 @@ test('lo guardado con setTask bajo la clave de una tarea es lo que weekTasks y s
   useStore.getState().setTask(call[0]!.key, { note: 'al celular de la hija' })
 
   const { tasks } = useStore.getState()
-  assert.deepEqual(weekTasks(MONDAY, tasks, '2026-10-12').map((i) => i.state), [{ done: true, note: '' }, NO_TASK])
+  assert.deepEqual(weekTasks(MONDAY, tasks, '2026-10-12').map((i) => i.state), [{ done: true, note: '' }, NO_TASK, NO_TASK])
   assert.deepEqual(surgeryTasks([row], tasks, '2026-10-12').map((i) => i.state), [{ done: false, note: 'al celular de la hija' }])
 })
 

@@ -1,6 +1,6 @@
 import { clean } from './agenda.ts'
 import { addDaysTo } from './dates.ts'
-import type { Row } from './types.ts'
+import type { Field, Row } from './types.ts'
 
 /**
  * Una tarea de la residente, aparte del checklist: no sale en la planilla que se exporta, solo vive en el sitio.
@@ -17,6 +17,7 @@ export type TaskDef = {
 export const TASK_DEFS: TaskDef[] = [
   { id: 'valija', scope: 'week', label: 'Hacer la valija', daysBefore: 1 },
   { id: 'lentes', scope: 'week', label: 'Revisar que haya suficientes lentes', daysBefore: 1 },
+  { id: 'datos', scope: 'week', label: 'Revisar que todas las cirugías tengan sus datos', daysBefore: 1 },
   { id: 'llamar', scope: 'surgery', label: 'Llamar al paciente', daysBefore: 2 },
 ]
 
@@ -86,6 +87,49 @@ export function nameChecks(rows: Row[], tasks: Record<string, TaskState>): NameC
     const key = `nombre|${row.key}`
     return { key, row, hasName: !!clean(row.name), state: tasks[key] ?? NO_TASK }
   })
+}
+
+/** Los datos que toda cirugía tiene que tener a principio de semana. El horario se escribe a mano: nada lo completa solo. */
+export const WEEK_FIELDS: Field[] = ['surgery', 'surgeon', 'eye', 'duration', 'name', 'time']
+
+/** Horas antes del horario de la cirugía a las que se cita al paciente. */
+export const CALL_HOURS_BEFORE = 2
+
+const CLOCK = /^(\d{1,2})(?:[:.](\d{2}))?(?:\s*hs?\.?)?$/
+
+/**
+ * La hora a la que se cita al paciente: `CALL_HOURS_BEFORE` horas antes del horario escrito. Es solo para mostrar, no se
+ * guarda en ningún campo (el horario lo escribe la persona). Si el horario no es una hora clara (texto, rangos, notas) o la
+ * cita caería antes de medianoche, no se calcula nada.
+ */
+export function callTime(time: string): string | null {
+  const m = CLOCK.exec(time.trim())
+  if (!m) return null
+  const hours = Number(m[1])
+  const minutes = Number(m[2] ?? 0)
+  if (hours > 23 || minutes > 59) return null
+  const total = hours * 60 + minutes - CALL_HOURS_BEFORE * 60
+  if (total < 0) return null
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+/** Los datos de `WEEK_FIELDS` que le faltan a una cirugía. Tildada quiere decir "así está bien". */
+export type DataCheck = { key: string; row: Row; missing: Field[]; state: TaskState }
+
+export function dataChecks(rows: Row[], tasks: Record<string, TaskState>): DataCheck[] {
+  return rows.map((row) => {
+    const key = `datos|${row.key}`
+    return { key, row, missing: WEEK_FIELDS.filter((f) => !clean(row[f])), state: tasks[key] ?? NO_TASK }
+  })
+}
+
+/**
+ * La tarea de la semana "Revisar que todas las cirugías tengan sus datos" tampoco se tilda: está hecha cuando cada
+ * cirugía con datos que faltan está reconocida (las completas no necesitan nada, y sin cirugías no queda nada por revisar).
+ */
+export function dataTask(item: TaskItem, checks: DataCheck[], now: string): TaskItem {
+  const done = checks.every((c) => c.missing.length === 0 || c.state.done)
+  return { ...item, state: { ...item.state, done }, status: taskStatus(item.due, done, now) }
 }
 
 /**
