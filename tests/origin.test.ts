@@ -3,7 +3,8 @@ import { test } from 'node:test'
 import { AGENDA_COLUMNS, parseAgenda } from '../src/agenda.ts'
 import { classifyEvents, describeEvent, parseIcs } from '../src/ics.ts'
 import { mergeChecklist } from '../src/merge.ts'
-import { disagree, otherAgendaRows } from '../src/origin.ts'
+import { agendaValue, disagree, otherAgendaRows } from '../src/origin.ts'
+import { FIELDS, MANUAL_FIELDS } from '../src/types.ts'
 
 // Datos inventados: nunca poner pacientes reales en el repo
 const HEADER = 'Marca temporal,Marca temporal,APELLIDO Y  NOMBRE  ,OBRA SOCIAL,DURACION,CIRUGIA,CIRUJANO,AYUDANTE,,JERARQUIA,TELEFONO DE CONTACTO,INSUMO A UTILIZAR,DIOPTRIAS,ANESTESIA,PEDIDO B,OBSERVACIONES,EDAD,DNI,'
@@ -102,4 +103,32 @@ test('otherAgendaRows: mismo paciente en otras filas, la más reciente primero; 
   assert.equal(disagree('Díaz', 'DIAZ'), false)
   assert.equal(disagree('DIAZ', 'MATA'), true)
   assert.equal(disagree('', 'MATA'), false)
+})
+
+test('agendaValue lee de la fila de la agenda cada campo que ella trae, y deja vacíos los que son solo del checklist', () => {
+  const [a] = parseAgenda(agendaCsv)
+  const read = Object.fromEntries(FIELDS.map((f) => [f, agendaValue(a, f)]))
+  assert.deepEqual(read, {
+    name: 'PEREZ JUAN',
+    hc: '100/00',
+    duration: '60',
+    time: '',
+    surgery: 'CATARATA',
+    surgeon: 'DIAZ',
+    assistant: 'LUNA',
+    eye: 'DERECHO',
+    contact: 'ESPOSA',
+    phone: '1111',
+    diopters: '',
+    anesthesia: 'LOCAL',
+    notes: '',
+    dni: '123',
+    prequi: '',
+    hcCheck: '',
+    extra: '',
+    quirofano: '',
+    quiroDia: '',
+  })
+  // los campos a mano nunca salen de la agenda
+  assert.ok(MANUAL_FIELDS.every((f) => agendaValue(a, f) === ''))
 })

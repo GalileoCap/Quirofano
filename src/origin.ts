@@ -5,9 +5,12 @@ import { FIELDS, MANUAL_FIELDS, type AgendaRow, type CalEvent, type Field, type 
 /** Los campos que traen las fuentes (el horario y las columnas a mano no). */
 export const SOURCE_FIELDS: Field[] = FIELDS.filter((f) => !MANUAL_FIELDS.includes(f) && f !== 'extra')
 
+/** Los campos del checklist que la fila de la agenda trae como texto, con el mismo nombre. */
+const AGENDA_TEXT = ['name', 'hc', 'surgery', 'surgeon', 'assistant', 'eye', 'contact', 'phone', 'diopters', 'anesthesia', 'notes', 'dni'] as const satisfies readonly (Field & keyof AgendaRow)[]
+const isAgendaText = (f: Field): f is (typeof AGENDA_TEXT)[number] => (AGENDA_TEXT as readonly Field[]).includes(f)
+
 /** Lo que dice la fila de la agenda en un campo del checklist ('' si no lo trae). */
-export const agendaValue = (a: AgendaRow, f: Field): string =>
-  f === 'duration' ? (a.duration?.toString() ?? '') : f in a ? String((a as unknown as Record<string, unknown>)[f] ?? '') : ''
+export const agendaValue = (a: AgendaRow, f: Field): string => (f === 'duration' ? (a.duration?.toString() ?? '') : isAgendaText(f) ? a[f] : '')
 
 const EVENT_FIELDS: Partial<Record<Field, keyof CalEvent>> = {
   name: 'name',
