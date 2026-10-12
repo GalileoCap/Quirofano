@@ -96,13 +96,6 @@ const calEvent = (date: string): CalEvent => ({
 const both = (agendaDate: string | null, calDate: string): Row =>
   mk(calDate, '1/00', 'both', { origin: { agenda: agendaRow(agendaDate), event: calEvent(calDate), by: 'hc', fields: {} } })
 
-// Una fila que está en una sola fuente; `missingIn` es la que no la tiene (y cubre esa fecha)
-const only = (date: string, hc: string, missingIn: 'agenda' | 'calendar', over: Partial<Row> = {}): Row =>
-  mk(date, hc, missingIn === 'calendar' ? 'agenda' : 'calendar', {
-    origin: { ...(missingIn === 'calendar' ? { agenda: agendaRow(date) } : { event: calEvent(date) }), fields: {}, missing: missingIn },
-    ...over,
-  })
-
 const con = (row: Row, excluded: Excluded['reason'] | undefined, dates: string[]) => flagNotes(rowFlags(row, excluded, dates))[0]?.text
 const presenceOf =(row: Row, excluded?: Excluded['reason']): Presence | undefined => rowFlags(row, excluded).presence
 
@@ -155,11 +148,9 @@ test('la presencia: a mano sobra, y con fechas iguales no hay presencia', () => 
   assert.equal(presenceOf(both('2026-10-15', '2026-10-15')), undefined)
 })
 
-test('estar en una sola fuente es una diferencia solo si la otra fuente cubre esa fecha', () => {
-  assert.deepEqual(presenceOf(only('2026-10-14', '1/00', 'calendar')), { kind: 'only', missingIn: 'calendar' })
-  assert.deepEqual(presenceOf(only('2026-10-14', '1/00', 'agenda')), { kind: 'only', missingIn: 'agenda' })
-  // sin calendar cargado para esas fechas, que la agenda sea la única fuente no es una diferencia
+test('estar en una sola fuente, la agenda o el calendar, no es una diferencia', () => {
   assert.equal(presenceOf(mk('2026-10-14', '1/00', 'agenda', { origin: { agenda: agendaRow('2026-10-14'), fields: {} } })), undefined)
+  assert.equal(presenceOf(mk('2026-10-14', '1/00', 'calendar', { origin: { event: calEvent('2026-10-14'), fields: {} } })), undefined)
 })
 
 test('una fila cruzada con la agenda y el calendar en días distintos es de fecha, y una fecha ilegible de la agenda queda en null', () => {
@@ -190,13 +181,10 @@ test('una cirugía movida de día une los dos lados: la que sobra apunta a la qu
   })
 })
 
-test('una fila que está en una sola fuente en otro día también queda unida con la que se escribió a mano', () => {
+test('la fila a mano apunta al otro día de una fila que está en una sola fuente, pero esa no se marca', () => {
   const sobra = mk('2026-10-14', '5/00', 'manual')
-  const soloAgenda = only('2026-10-16', '5/00', 'calendar')
-  assert.deepEqual(asObject(elsewhereDates([sobra, soloAgenda], [])), {
-    [sobra.key]: ['2026-10-16'],
-    [soloAgenda.key]: ['2026-10-14'],
-  })
+  const soloAgenda = mk('2026-10-16', '5/00', 'agenda')
+  assert.deepEqual(asObject(elsewhereDates([sobra, soloAgenda], [])), { [sobra.key]: ['2026-10-16'] })
 })
 
 test('la misma persona con dos cirugías reales en días distintos no se marca como movida, ni una fila a mano sola', () => {
@@ -253,8 +241,6 @@ test('cada presencia tiene su texto, y es la primera nota', () => {
   const casos: [string, ReturnType<typeof rowFlags>, string][] = [
     ['extra', rowFlags(mk('2026-10-14', '1/00', 'manual')), 'Sobra: no está en la agenda ni en el calendar'],
     ['removed', rowFlags(mk('2026-10-14', '1/00', 'agenda'), 'removed'), 'Falta: la sacaste a mano'],
-    ['only agenda', rowFlags(only('2026-10-14', '1/00', 'calendar')), 'Está en la agenda pero no en el calendar'],
-    ['only calendar', rowFlags(only('2026-10-14', '1/00', 'agenda')), 'Está en el calendar pero no en la agenda'],
     ['suspended', rowFlags(mk('2026-10-14', '1/00', 'calendar'), 'suspended'), 'Suspendida en el calendar'],
     ['date', rowFlags(both('2026-10-13', '2026-10-15')), 'Otro día: la agenda dice 13/10, el calendar 15/10'],
     ['date sin agenda', rowFlags(both(null, '2026-10-15')), 'Otro día: la agenda tiene la fecha ilegible, el calendar 15/10'],
@@ -271,7 +257,6 @@ test('las fechas de otros días se agregan al texto de lo que sobra y de lo que 
   assert.equal(con(manual, undefined, ['2026-10-16', '2026-10-17']), 'Sobra: no está en la agenda ni en el calendar · las fuentes la tienen el 16/10, 17/10')
   const agenda = mk('2026-10-16', '1/00', 'agenda')
   assert.equal(con(agenda, 'removed', ['2026-10-14']), 'Falta: la sacaste a mano · en el checklist está el 14/10')
-  assert.equal(con(only('2026-10-16', '1/00', 'calendar'), undefined, ['2026-10-14']), 'Está en la agenda pero no en el calendar · a mano está el 14/10')
   // en los otros tipos no agrega nada
   assert.equal(con(agenda, undefined, ['2026-10-14']), undefined)
   assert.equal(con(agenda, 'suspended', ['2026-10-14']), 'Suspendida en el calendar')
@@ -297,7 +282,7 @@ test('con presencia y otras diferencias, la presencia va primero y las demás no
   assert.deepEqual(notes.map((n) => n.text), ['Otro día: la agenda dice 13/10, el calendar 15/10', 'Sin confirmar: Ojo', 'Editado: Anestesia'])
   // lo faltante se sigue avisando en las filas incluidas, después de la presencia
   const simon = find(rows, 'SIN AGENDA SIMON')
-  assert.deepEqual(flagNotes(rowFlags(simon)).map((n) => n.text), ['Está en el calendar pero no en la agenda', 'Falta: HC, Ojo, Duración'])
+  assert.deepEqual(flagNotes(rowFlags(simon)).map((n) => n.text), ['Falta: HC, Ojo, Duración'])
 })
 
 // filtros
@@ -310,8 +295,8 @@ test('hay un filtro nuevo de fecha o presencia, antes de los de siempre', () => 
 test('el filtro de presencia deja pasar lo que sobra, lo que falta y lo de otro día, y no lo que está en una sola fuente', () => {
   const { rows } = week()
   const names = rows.filter((r) => inFilter(rowFlags(r), 'presence')).map((r) => r.name).toSorted()
-  // lo que está en una sola fuente (con la otra cubriendo la fecha) también es de presencia
-  assert.deepEqual(names, ['LOPEZ RITA', 'RAMOS EVA', 'SIN AGENDA SIMON'])
+  // lo que está en una sola fuente no es de presencia
+  assert.deepEqual(names, ['LOPEZ RITA'])
   assert.equal(inFilter(rowFlags(find(rows, 'PEREZ JUAN'), 'removed'), 'presence'), true)
   assert.equal(inFilter(rowFlags(find(rows, 'PEREZ JUAN')), 'presence'), false)
 })

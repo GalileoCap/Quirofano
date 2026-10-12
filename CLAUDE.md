@@ -51,7 +51,7 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm run lint`, `npm test`,
 
 ### Cruce
 
-`src/merge.ts`. El calendar manda sobre qué cirugías hay cada día y la agenda aporta los datos. Se cruza por HC (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar entra igual al checklist y se marca como diferencia ("Está en la agenda pero no en el calendar"); lo que está en el calendar y no en la agenda, también ("Está en el calendar pero no en la agenda"). La fuente que falta queda en `origin.missing` y solo se anota si esa fuente tiene cirugías ese día: sin calendar para esas fechas se usa solo la agenda y eso no es una diferencia. "Sin incluir" queda para lo suspendido y lo que se sacó a mano. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
+`src/merge.ts`. El calendar manda sobre qué cirugías hay cada día y la agenda aporta los datos. Se cruza por HC (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar entra igual al checklist, y lo que está en el calendar y no en la agenda también. Estar en una sola fuente no es una diferencia ni se marca: el chip de origen ("Agenda L95" sin "+ Calendar") ya lo dice. Sin calendar para esas fechas se usa solo la agenda. "Sin incluir" queda para lo suspendido y lo que se sacó a mano. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
 
 ### A mano, horario, exportación y rango
 
@@ -85,11 +85,10 @@ Tocar una línea abre el detalle (`DetailDialog.tsx`, solo lectura). Muestra las
 
 Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un filtro con su cuenta. El filtro vale para las tres vistas (`FilterBar.tsx`).
 
-- Fecha o presencia: lo más importante, y por eso va primero y resalta mucho más que el resto (rojo sólido, borde grueso a la izquierda de la fila, y lo mismo en el Calendario y en las tarjetas del Detalle). Es una cirugía que sobra, que falta o que está en otro día, medido contra lo que dicen las fuentes (`Presence`):
+- Fecha o presencia: lo más importante, y por eso va primero y resalta mucho más que el resto (rojo sólido, borde grueso a la izquierda de la fila, y lo mismo en el Calendario y en las tarjetas del Detalle). Es una cirugía que sobra, que falta o que está en otro día, medido contra lo que dicen las fuentes (`Presence`). Solo es un problema si está en las dos fuentes y difieren, o si difiere con lo que escribió la persona; estar en una sola fuente no lo es:
   - Sobra: se agregó a mano y ninguna fuente la tiene ese día.
   - Falta: las fuentes la tienen y se sacó a mano.
   - Otro día: la agenda y el calendar la tienen en días distintos.
-  - Está en la agenda pero no en el calendar (o al revés), cuando la otra fuente tiene cirugías ese día.
   - Suspendida en el calendar.
   - Si es la misma persona (misma HC, o el mismo nombre si falta) y una está de un lado en un día y del otro lado en otro, la marca dice el otro día ("las fuentes la tienen el 16/10", `elsewhereDates`). Dos cirugías reales de una persona en días distintos no cuentan como movidas.
 

@@ -96,8 +96,6 @@ export type Origin = {
   event?: CalEvent
   /** Cómo se encontró la fila de la agenda para el evento: por HC o por nombre */
   by?: 'hc' | 'name'
-  /** La fuente que no tiene la cirugía, cuando esa fuente sí tiene cirugías ese día (diferencia entre agenda y calendar) */
-  missing?: 'agenda' | 'calendar'
   /** Fuente de cada campo que tiene valor (el horario y las columnas a mano no figuran) */
   fields: Partial<Record<Field, 'agenda' | 'calendar'>>
 }

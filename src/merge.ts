@@ -71,11 +71,11 @@ function fromAgenda(a: AgendaRow, date: string, key: string, source: Row['source
  * Deja en la fila de dónde salió: la fila de la agenda y/o el evento, y qué fuente puso cada campo.
  * Si los dos tienen el mismo valor se atribuye a la agenda, que es la que manda en el cruce.
  */
-function withOrigin(row: Row, agenda?: AgendaRow, event?: CalEvent, by?: Origin['by'], missing?: Origin['missing']): Row {
+function withOrigin(row: Row, agenda?: AgendaRow, event?: CalEvent, by?: Origin['by']): Row {
   const fromA = agenda ? fromAgenda(agenda, row.date, row.key, 'agenda') : null
   const fields: Origin['fields'] = {}
   for (const f of FIELDS) if (row[f]) fields[f] = fromA?.[f] === row[f] ? 'agenda' : 'calendar'
-  return { ...row, origin: { agenda, event, by, missing, fields } }
+  return { ...row, origin: { agenda, event, by, fields } }
 }
 
 /** HC sin espacios ni separadores raros: '52017 / 00' y '52017:00' son la misma. */
@@ -115,7 +115,6 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
   })
   const suspensions = events.filter((e) => e.kind === 'suspension' && inRange(e.date))
   const calendarCovers = surgeries.length > 0
-  const agendaCovers = agenda.some((a) => inRange(a.date))
   const warnings: string[] = []
   const used = new Set<AgendaRow>()
   const rows: Row[] = []
@@ -167,7 +166,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
       Object.assign(row, { name: e.name, surgery: e.surgery, surgeon: e.surgeon, assistant: e.assistant })
       Object.assign(row, { eye: e.eye, diopters: e.diopters, hc: e.hc, phone: e.phone })
       row.warning = 'Está en el calendar pero no encontré al paciente en la agenda: completá los datos.'
-      rows.push(withOrigin(row, undefined, e, undefined, agendaCovers ? 'agenda' : undefined))
+      rows.push(withOrigin(row, undefined, e))
       continue
     }
     const a = best.row
@@ -195,7 +194,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     rows.push(withOrigin(row, a, e, best.byHc ? 'hc' : 'name'))
   }
 
-  // Lo que está en la agenda con fecha de la semana pero sin evento en el calendar entra igual: se marca como diferencia
+  // Lo que está en la agenda con fecha de la semana pero sin evento en el calendar entra igual
   const seen = new Map<string, AgendaRow>()
   for (const a of agenda) {
     if (!inRange(a.date) || used.has(a) || suspendedRows.has(a)) continue
@@ -205,9 +204,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     seen.set(dup, a)
   }
   for (const a of seen.values()) {
-    const row = withOrigin(fromAgenda(a, a.date!, uniqueKey(a.date!, a), 'agenda'), a, undefined, undefined, calendarCovers ? 'calendar' : undefined)
-    if (calendarCovers) row.warning = 'La agenda la tiene este día, pero no está en el calendar.'
-    rows.push(row)
+    rows.push(withOrigin(fromAgenda(a, a.date!, uniqueKey(a.date!, a), 'agenda'), a))
   }
 
   if (!calendarCovers && agenda.length && events.length)

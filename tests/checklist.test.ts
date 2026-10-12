@@ -101,11 +101,8 @@ test('mergeChecklist: cruza calendar y agenda, separa suspendidas y avisa lo que
   assert.match(byName['REPROGRAMADA RITA'].warning!, /rota/)
   // en el calendar pero no en la agenda
   assert.equal(byName['SIN AGENDA SIMON'].source, 'calendar')
-  assert.equal(byName['SIN AGENDA SIMON'].origin?.missing, 'agenda')
-  // en la agenda pero no en el calendar: entra al checklist igual, y la fuente que falta queda anotada
+  // en la agenda pero no en el calendar: entra al checklist igual
   assert.equal(byName['SOLO AGENDA SARA'].source, 'agenda')
-  assert.equal(byName['SOLO AGENDA SARA'].origin?.missing, 'calendar')
-  assert.equal(byName['PEREZ JUAN'].origin?.missing, undefined)
   assert.deepEqual(res.excluded.map((x) => [x.row.name, x.reason]), [['SUSPENDIDO SOL', 'suspended']])
   assert.equal(res.warnings.length, 1)
 })
@@ -114,8 +111,6 @@ test('mergeChecklist: sin calendar en esas fechas usa la fecha de la agenda', ()
   const res = mergeChecklist({ agenda: parseAgenda(agendaCsv), events: [], problems: [], from: '2026-10-12', to: '2026-10-18' })
   assert.equal(res.rows.length, 4)
   assert.equal(res.calendarCovers, false)
-  // sin calendar para esas fechas, que la agenda sea la única fuente no es una diferencia
-  assert.ok(res.rows.every((r) => r.origin?.missing === undefined))
 })
 
 test('ningún campo se completa solo: el horario queda vacío hasta que se escribe, aunque falte la duración', () => {
@@ -161,8 +156,8 @@ test('calendar real: la HC de la descripción cruza aunque el nombre esté mal e
   assert.equal(events.length, 2)
   assert.equal(events[1].name, 'PEREZ JUAN CARLOS')
   const res = mergeChecklist({ agenda, events, problems: [], from: '2026-10-12', to: '2026-10-18' })
-  // la fila de la agenda que no se cruzó (100/00) entra igual, como una diferencia de presencia
-  assert.deepEqual(res.rows.map((r) => [r.hc, r.origin?.missing]), [['101/00', undefined], ['100/00', 'calendar']])
+  // la fila de la agenda que no se cruzó (100/00) entra igual, solo de la agenda
+  assert.deepEqual(res.rows.map((r) => [r.hc, r.source]), [['101/00', 'both'], ['100/00', 'agenda']])
   assert.equal(res.rows[0].diopters, '+20.00')
   assert.equal(res.rows[0].warning, undefined)
   assert.deepEqual(res.excluded, [])

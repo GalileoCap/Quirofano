@@ -16,8 +16,6 @@ export const PENDING_FIELDS: Field[] = ['time', 'prequi', 'hcCheck']
 export type Presence =
   /** Está en el checklist (se agregó a mano) y ninguna fuente la tiene ese día */
   | { kind: 'extra' }
-  /** Está en una sola fuente y la otra sí tiene cirugías ese día (diferencia entre agenda y calendar) */
-  | { kind: 'only'; missingIn: 'agenda' | 'calendar' }
   /** Las fuentes la tienen y el checklist no: se sacó a mano */
   | { kind: 'removed' }
   /** El calendar la suspendió: no está en el checklist */
@@ -51,8 +49,7 @@ function presenceOf(row: Row, excluded: Excluded['reason'] | undefined): Presenc
   if (excluded === 'suspended') return { kind: 'suspended' }
   if (excluded) return { kind: 'removed' }
   if (row.source === 'manual') return { kind: 'extra' }
-  const { agenda, event, missing } = row.origin ?? {}
-  if (missing) return { kind: 'only', missingIn: missing }
+  const { agenda, event } = row.origin ?? {}
   if (agenda && event && agenda.date !== event.date) return { kind: 'date', agenda: agenda.date, calendar: event.date }
   return undefined
 }
@@ -125,8 +122,6 @@ function presenceText(p: Presence, elsewhere: string[]): string {
   switch (p.kind) {
     case 'extra':
       return `Sobra: no está en la agenda ni en el calendar${there ? ` · las fuentes la tienen el ${there}` : ''}`
-    case 'only':
-      return `${p.missingIn === 'calendar' ? 'Está en la agenda pero no en el calendar' : 'Está en el calendar pero no en la agenda'}${there ? ` · a mano está el ${there}` : ''}`
     case 'removed':
       return `Falta: la sacaste a mano${there ? ` · en el checklist está el ${there}` : ''}`
     case 'suspended':
@@ -171,7 +166,6 @@ export function elsewhereDates(rows: Row[], excluded: Excluded[]): Map<string, s
   }
   for (const row of manual) add(row, sources)
   for (const { row, reason } of excluded) if (reason === 'removed') add(row, manual)
-  for (const row of rows) if (row.origin?.missing) add(row, manual)
   return out
 }
 
