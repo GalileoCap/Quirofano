@@ -59,6 +59,8 @@ El repo es `git@github.com:GalileoCap/Quirofano.git` (remote `origin`, rama `mai
 3. Tag `vX.Y.Z` sobre ese commit.
 4. Push de `main` y del tag.
 
+El push del tag dispara `.github/workflows/deploy.yml`: corre `npm test` y `npm run build` y publica `dist/` en GitHub Pages, en `quiro.smplworks.net` (dominio de NameCheap; el dominio se configura en Settings → Pages del repo, no en un archivo `CNAME`). Los pushes a `main` sin tag no publican. Como `localStorage` es por origen, `quiro.smplworks.net` no comparte nada con `guardias.smplworks.net` ni con `localhost`.
+
 Entre deploys se commitea pero no se pushea. Como la app guarda todo en el navegador de cada persona, el "backup antes de deployar" es el JSON de Datos (Exportar JSON): se avisa que lo baje antes de abrir la versión nueva.
 
 ## Cómo se arma el checklist
