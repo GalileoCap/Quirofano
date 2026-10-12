@@ -39,7 +39,9 @@ Todo vive en `localStorage` con zustand persist, en dos claves (`src/store.ts`):
 
 Todo lo que tenga que ver con la forma de lo guardado está en `src/persist.ts`. Para cambiarla:
 
-1. Subir `USER_VERSION` (o `SOURCES_VERSION`).
+**Una migración por deploy, no una por cambio.** Entre un deploy y el siguiente, todos los cambios a la forma de lo guardado se juntan en un solo paso (una sola subida de versión). Mientras el cambio no se deployó, ese paso se sigue editando en vez de sumar otro, y la versión no vuelve a subir. Lo deployado manda: no se toca un paso que ya salió, se agrega uno nuevo. Hoy no hay nada deployado, así que `USER_VERSION` (1) y `SOURCES_VERSION` (2) son la base de la primera salida.
+
+1. Subir `USER_VERSION` (o `SOURCES_VERSION`), solo si desde el último deploy no se había subido ya.
 2. Agregar en `USER_MIGRATIONS` (o `SOURCES_MIGRATIONS`) el paso que lleva de la versión anterior a la nueva; la clave es la versión de la que parte. `runMigrations` los encadena en orden y lanza si falta uno.
 3. Si cambia la forma de un campo, ajustar su lector (`readUserData`, `readSources`, `readNews`). Esos lectores corren siempre después de la migración y también con lo que está en la versión actual: lo que falta queda vacío (así una columna nueva en `FIELDS` no rompe filas viejas) y lo que no se entiende se descarta entrada por entrada, sin tumbar la app.
 4. Escribir el test del paso con un estado de la versión vieja (`tests/persist.test.ts`).
