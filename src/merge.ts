@@ -14,8 +14,10 @@ export type MergeInput = {
 export type MergeResult = {
   rows: Row[]
   excluded: Excluded[]
-  /** Avisos generales (no de una fila en particular) */
+  /** Avisos generales (no de una fila en particular ni de un evento) */
   warnings: string[]
+  /** Eventos del calendar de estos días que parecen una cirugía pero no se pudieron leer */
+  problems: CalProblem[]
   /** Si el calendar tiene cirugías en estas fechas: si no, se arma solo con la agenda */
   calendarCovers: boolean
 }
@@ -129,9 +131,6 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     return key
   }
 
-  for (const problem of problems.filter((p) => inRange(p.date)))
-    warnings.push(`El evento "${problem.title}" del ${fmtDate(problem.date)} no tiene el formato "CIRUGÍA / PACIENTE / CIRUJANO": no lo pude cruzar.`)
-
   // Las cirugías suspendidas no entran (salvo que el calendar las siga mostrando ese mismo día)
   const suspendedRows = new Set<AgendaRow>()
   for (const s of suspensions) {
@@ -210,7 +209,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
   if (!calendarCovers && agenda.length && events.length)
     warnings.push('El calendar no tiene cirugías en estas fechas: armé el checklist solo con la fecha de la agenda.')
 
-  return { rows: rows.toSorted(byDate), excluded: excluded.toSorted((a, b) => byDate(a.row, b.row)), warnings, calendarCovers }
+  return { rows: rows.toSorted(byDate), excluded: excluded.toSorted((a, b) => byDate(a.row, b.row)), warnings, problems: problems.filter((p) => inRange(p.date)), calendarCovers }
 }
 
 /** Los siete días (lunes a domingo) de la semana que empieza en `monday`. */

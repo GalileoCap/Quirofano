@@ -106,7 +106,7 @@ export function classifyEvents(raw: RawEvent[]): { events: CalEvent[]; problems:
     } else if (parts.length === 2 && parts[0] && info.name) {
       events.push({ ...base, ...details, surgery: parts[0], name: info.name, surgeon: clean(parts[1]), assistant: '' })
     } else if (!suspension && SURGERY_WORDS.test(e.title)) {
-      problems.push({ date: e.date, title: e.title, calendar: e.calendar })
+      problems.push({ date: e.date, title: e.title, calendar: e.calendar, description: e.description })
     }
   }
   return { events, problems }

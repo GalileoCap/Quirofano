@@ -45,7 +45,7 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm run lint`, `npm test`,
 
 - Las cirugías actuales están en el calendario `AGENDA` (el principal, mezclado con eventos personales). `AGENDA QUIRURGICA` es el viejo, con texto libre. Lo suspendido va a `SUSPENSION QUIRURGICA`. `Birthdays` se descarta al cargar.
 - Formato actual del título: `CIRUGÍA / PACIENTE / CIRUJANO / AYUDANTE`, y la descripción trae `OJO / DIOPTRÍAS / HC / TELÉFONO`. El formato viejo es `CIRUGÍA / CIRUJANO / AYUDANTE` con `[OJO /] PACIENTE / HC / TELÉFONO` en la descripción. Cada pedazo de la descripción se reconoce por su forma, no por su posición.
-- Un evento con palabras de cirugía pero sin formato legible (`CATARAT BROCHARD ORTELLADO`, `/CATABROCHARD/…`) se avisa arriba en vez de ignorarse.
+- Un evento con palabras de cirugía pero sin formato legible (`CATARAT BROCHARD ORTELLADO`, `/CATABROCHARD/…`) se avisa arriba en vez de ignorarse. El aviso (`src/problems.ts`) tiene "Cargar a mano" (agrega una cirugía vacía ese día y abre el formulario, sin completar nada) y "Reconocer" (se guarda en `acks` con la huella del evento; vuelve a avisar si cambia su título o su descripción, y "Avisos reconocidos" permite volver a avisar). Un evento que salió del rango o se corrigió en el calendar deja de avisar solo.
 - Se guardan solo los eventos de los últimos 120 días.
 - El PDF que imprime Google Calendar corta los títulos, así que no se lee.
 

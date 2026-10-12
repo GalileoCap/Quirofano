@@ -51,7 +51,7 @@ export type CalEvent = {
 }
 
 /** Un evento de un calendario de cirugías que no tiene el formato esperado (se avisa en vez de ignorarlo). */
-export type CalProblem = { date: string; title: string; calendar: string }
+export type CalProblem = { date: string; title: string; calendar: string; description: string }
 
 export type Source = 'both' | 'agenda' | 'calendar' | 'manual'
 

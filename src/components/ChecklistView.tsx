@@ -3,6 +3,7 @@ import { sheetCsv, sheetTsv, weekRange } from '../checklist.ts'
 import { addDaysTo, dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
+import { problemKey, problemSignature, problemText, splitProblems } from '../problems.ts'
 import { useSources, useStore } from '../store.ts'
 import { flagNotes, inFilter, itemsOf, type Filter } from '../overview.ts'
 import type { Row } from '../types.ts'
@@ -29,13 +30,14 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
   const [filter, setFilter] = useState<Filter>('all')
   const [mode, setMode] = useState<'resumen' | 'detalle' | 'calendario'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
-  const { rows, excluded, warnings } = useChecklist(monday)
+  const { rows, excluded, warnings, problems } = useChecklist(monday)
   const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, takeSource, news, setNews, ranges, setRange, acks, acknowledge, unacknowledge } = useStore()
   const range = weekRange(monday, ranges)
   const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
   const orphans = useOrphans()
 
   const items = useMemo(() => itemsOf(rows, excluded, acks), [rows, excluded, acks])
+  const unreadable = useMemo(() => splitProblems(problems, acks), [problems, acks])
   const flagsOf = (key: string) => items.find((i) => i.row.key === key)?.flags
   const days = useMemo(
     () =>
@@ -151,6 +153,34 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
             </p>
           ))}
         </div>
+      )}
+
+      {unreadable.open.map((p) => (
+        <div key={problemKey(p)} role="alert" className="alert alert-warning alert-soft flex-wrap items-center gap-2 text-sm text-base-content">
+          <Icon name="warning" className="size-4" />
+          <span className="min-w-0 flex-1">{problemText(p)}</span>
+          <button className="btn btn-xs" title="Agrega una cirugía vacía ese día para que la cargues" onClick={() => setEditing(addManualRow(p.date))}>
+            <Icon name="plus" /> Cargar a mano
+          </button>
+          <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que el evento cambie en el calendar" onClick={() => acknowledge(problemKey(p), problemSignature(p))}>
+            Reconocer
+          </button>
+        </div>
+      ))}
+      {unreadable.acked.length > 0 && (
+        <details className="px-1 text-sm text-base-content/70">
+          <summary className="cursor-pointer">Avisos reconocidos ({unreadable.acked.length})</summary>
+          <ul className="mt-1 flex flex-col gap-1">
+            {unreadable.acked.map((p) => (
+              <li key={problemKey(p)} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1">{problemText(p)}</span>
+                <button className="btn btn-xs" onClick={() => unacknowledge(problemKey(p))}>
+                  Volver a avisar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {conflicted.length > 0 && (

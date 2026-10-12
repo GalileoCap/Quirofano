@@ -7,7 +7,7 @@ import { mergeChecklist } from './merge.ts'
 import { findOrphans, type Orphan } from './review.ts'
 import { useSources, useStore } from './store.ts'
 import { suggestions } from './suggest.ts'
-import type { Excluded, Row } from './types.ts'
+import type { CalProblem, Excluded, Row } from './types.ts'
 
 export function useAgenda() {
   const text = useSources((s) => s.agenda?.text)
@@ -40,6 +40,8 @@ export type Checklist = {
   rows: Row[]
   excluded: Excluded[]
   warnings: string[]
+  /** Eventos del calendar que no se pudieron leer */
+  problems: CalProblem[]
   /** Si hay agenda cargada */
   hasAgenda: boolean
 }
@@ -69,7 +71,7 @@ export function useChecklist(monday: string): Checklist {
     }
     for (const r of manualRows) if (r.date >= from && r.date <= to) kept.push(r)
     const rows = sortRows(applyEdits(kept, edits, bases), order)
-    return { rows, excluded, warnings: merged.warnings, hasAgenda: agenda.length > 0 }
+    return { rows, excluded, warnings: merged.warnings, problems: merged.problems, hasAgenda: agenda.length > 0 }
   }, [merged, edits, bases, order, included, manualRows, from, to, agenda.length])
 }
 

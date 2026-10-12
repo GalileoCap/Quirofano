@@ -104,7 +104,9 @@ test('mergeChecklist: cruza calendar y agenda, separa suspendidas y avisa lo que
   // en la agenda pero no en el calendar: entra al checklist igual
   assert.equal(byName['SOLO AGENDA SARA'].source, 'agenda')
   assert.deepEqual(res.excluded.map((x) => [x.row.name, x.reason]), [['SUSPENDIDO SOL', 'suspended']])
-  assert.equal(res.warnings.length, 1)
+  // el evento ilegible va en `problems` (para poder reconocerlo), no entre los avisos generales
+  assert.equal(res.problems.length, 1)
+  assert.equal(res.warnings.length, 0)
 })
 
 test('mergeChecklist: sin calendar en esas fechas usa la fecha de la agenda', () => {
