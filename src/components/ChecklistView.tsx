@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { sheetCsv, sheetTsv, weekRange } from '../checklist.ts'
-import { addDaysTo, dayOfWeek, isoOf, mondayOf } from '../dates.ts'
+import { addDaysTo, dayOfWeek, mondayOf, today } from '../dates.ts'
 import { DAY_LABELS, shortDate, weekLabel } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
 import { useSources, useStore } from '../store.ts'
@@ -19,9 +19,9 @@ import { NewsCard, Orphans } from './Review.tsx'
 
 /** La semana que se arma por defecto: la actual, y desde el sábado la que viene. */
 function defaultMonday() {
-  const today = isoOf(new Date())
-  const dow = dayOfWeek(today)
-  return mondayOf(dow === 6 ? addDaysTo(today, 2) : dow === 0 ? addDaysTo(today, 1) : today)
+  const now = today()
+  const dow = dayOfWeek(now)
+  return mondayOf(dow === 6 ? addDaysTo(now, 2) : dow === 0 ? addDaysTo(now, 1) : now)
 }
 
 export default function ChecklistView() {
@@ -33,7 +33,7 @@ export default function ChecklistView() {
   const [mode, setMode] = useState<'resumen' | 'detalle' | 'calendario'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
-  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, useSource, news, setNews, ranges, setRange } = useStore()
+  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, takeSource, news, setNews, ranges, setRange } = useStore()
   const range = weekRange(monday, ranges)
   const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
   const orphans = useOrphans()
@@ -211,7 +211,7 @@ export default function ChecklistView() {
                   onEdit={() => setEditing(r.key)}
                   onRemove={() => remove(r)}
                   onKeepMine={() => keepMine(r.key, r.conflicts ?? [])}
-                  onUseSource={() => useSource(r.key, r.conflicts ?? [])}
+                  onUseSource={() => takeSource(r.key, r.conflicts ?? [])}
                   onSource={() => setSourcing(r.key)}
                 />
               ))}

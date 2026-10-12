@@ -2,7 +2,7 @@ import esLocale from '@fullcalendar/core/locales/es'
 import type { EventClickArg, EventContentArg, EventInput } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import FullCalendar from '@fullcalendar/react'
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { addDaysTo } from '../dates.ts'
 import { flagNotes, rowFlags, type Flags } from '../overview.ts'
 import type { Excluded, Row } from '../types.ts'
@@ -85,7 +85,9 @@ export default function CalendarView({
     else onView(arg.event.id)
   }
   const clickRef = useRef(click)
-  clickRef.current = click
+  useLayoutEffect(() => {
+    clickRef.current = click
+  })
   const onEventClick = useCallback((arg: EventClickArg) => clickRef.current(arg), [])
 
   return (

@@ -99,8 +99,10 @@ function candidates(e: CalEvent, agenda: AgendaRow[], used: Set<AgendaRow>) {
     out.push({ row, score, byHc: sameHc })
   }
   // a igual puntaje, la carga más reciente (es la que corrige a las anteriores)
-  return out.sort((x, y) => y.score - x.score || (y.row.stamp ?? '').localeCompare(x.row.stamp ?? '') || y.row.line - x.row.line)
+  return out.toSorted((x, y) => y.score - x.score || (y.row.stamp ?? '').localeCompare(x.row.stamp ?? '') || y.row.line - x.row.line)
 }
+
+const byDate = (a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date)
 
 export function mergeChecklist({ agenda, events, problems, from, to }: MergeInput): MergeResult {
   const inRange = (d: string | null): d is string => !!d && d >= from && d <= to
@@ -127,8 +129,8 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     return key
   }
 
-  for (const p of problems.filter((p) => inRange(p.date)))
-    warnings.push(`El evento "${p.title}" del ${fmtDate(p.date)} no tiene el formato "CIRUGÍA / PACIENTE / CIRUJANO": no lo pude cruzar.`)
+  for (const problem of problems.filter((p) => inRange(p.date)))
+    warnings.push(`El evento "${problem.title}" del ${fmtDate(problem.date)} no tiene el formato "CIRUGÍA / PACIENTE / CIRUJANO": no lo pude cruzar.`)
 
   // Las cirugías suspendidas no entran (salvo que el calendar las siga mostrando ese mismo día)
   const suspendedRows = new Set<AgendaRow>()
@@ -210,8 +212,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
   if (!calendarCovers && agenda.length && events.length)
     warnings.push('El calendar no tiene cirugías en estas fechas: armé el checklist solo con la fecha de la agenda.')
 
-  const byDate = (a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date)
-  return { rows: rows.sort(byDate), excluded: excluded.sort((a, b) => byDate(a.row, b.row)), warnings, calendarCovers }
+  return { rows: rows.toSorted(byDate), excluded: excluded.toSorted((a, b) => byDate(a.row, b.row)), warnings, calendarCovers }
 }
 
 /** Los siete días (lunes a domingo) de la semana que empieza en `monday`. */

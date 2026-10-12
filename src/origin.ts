@@ -37,6 +37,6 @@ export function otherAgendaRows(agenda: AgendaRow[], row: Row, limit = 8): Agend
   const used = row.origin?.agenda?.line
   return agenda
     .filter((a) => a.line !== used && ((!!row.hc && !!a.hc && normHc(a.hc) === normHc(row.hc)) || nameMatch(a.name, row.name) >= 2))
-    .sort((x, y) => (y.date ?? '').localeCompare(x.date ?? '') || y.line - x.line)
+    .toSorted((x, y) => (y.date ?? '').localeCompare(x.date ?? '') || y.line - x.line)
     .slice(0, limit)
 }

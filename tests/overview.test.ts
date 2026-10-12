@@ -65,7 +65,7 @@ test('agenda y calendar que dicen cosas distintas en un campo, o en la fecha, se
 test('una fila que está en una sola fuente lo dice, y lo que no tiene se marca como faltante', () => {
   const f = rowFlags(find(week().rows, 'SIN AGENDA SIMON'))
   assert.equal(f.single, 'calendar')
-  assert.deepEqual(f.missing.sort(), ['duration', 'eye', 'hc'])
+  assert.deepEqual(f.missing.toSorted(), ['duration', 'eye', 'hc'])
   assert.equal(rowFlags({ ...find(week().rows, 'SIN AGENDA SIMON'), source: 'manual' }).single, 'manual')
 })
 
@@ -96,7 +96,7 @@ test('lo que se escribe a mano para completar un dato faltante lo saca de faltan
 
 test('cada filtro deja pasar a las filas que corresponden', () => {
   const { rows } = week()
-  const names = (filter: Parameters<typeof inFilter>[1]) => rows.filter((r) => inFilter(rowFlags(r), filter)).map((r) => r.name).sort()
+  const names = (filter: Parameters<typeof inFilter>[1]) => rows.filter((r) => inFilter(rowFlags(r), filter)).map((r) => r.name).toSorted()
   assert.deepEqual(names('all'), ['GOMEZ ANA', 'LOPEZ RITA', 'PEREZ JUAN', 'SIN AGENDA SIMON'])
   assert.deepEqual(names('sources'), ['GOMEZ ANA', 'LOPEZ RITA', 'SIN AGENDA SIMON'])
   assert.deepEqual(names('missing'), ['SIN AGENDA SIMON'])

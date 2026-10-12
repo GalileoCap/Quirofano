@@ -38,8 +38,8 @@ export function sortRows(rows: Row[], order: Record<string, string[]>): Row[] {
     const i = order[r.date]?.indexOf(r.key) ?? -1
     return i < 0 ? Infinity : i
   }
-  // Array.sort es estable: lo que empata conserva el orden del cruce
-  return [...rows].sort((a, b) => a.date.localeCompare(b.date) || pos(a) - pos(b))
+  // El orden es estable: lo que empata conserva el orden del cruce
+  return rows.toSorted((a, b) => a.date.localeCompare(b.date) || pos(a) - pos(b))
 }
 
 const HEADER_TOP = ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'QUIROFANO', 'QUIRO DIA']
@@ -52,7 +52,7 @@ const dmy = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.s
  * teléfono, dioptrías, anestesia, observaciones, DNI, PREQUI, HC, notas, (vacía), QUIRÓFANO, QUIRÓ DÍA.
  */
 export function toSheet(rows: Row[]): string[][] {
-  const days = [...new Set(rows.map((r) => r.date))].sort().reverse()
+  const days = [...new Set(rows.map((r) => r.date))].toSorted().toReversed()
   const out: string[][] = [HEADER_TOP]
   days.forEach((date, i) => {
     if (i > 0) out.push(HEADER_TOP.map(() => ''))

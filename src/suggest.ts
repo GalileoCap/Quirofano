@@ -26,9 +26,9 @@ export function suggestions(agenda: AgendaRow[], events: CalEvent[], { since, li
       groups.set(norm, g)
     }
     out[f] = [...groups.values()]
-      .sort((a, b) => b.total - a.total)
+      .toSorted((a, b) => b.total - a.total)
       .slice(0, limit)
-      .map((g) => [...g.spellings].sort((a, b) => b[1] - a[1])[0][0])
+      .map((g) => [...g.spellings].toSorted((a, b) => b[1] - a[1])[0][0])
   }
   return out
 }

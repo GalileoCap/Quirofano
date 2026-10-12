@@ -46,7 +46,7 @@ type Actions = {
   /** Me quedo con lo mío: lo escrito pasa a ser lo confirmado frente a lo que dicen hoy las fuentes. */
   keepMine: (key: string, conflicts: Conflict[]) => void
   /** Uso lo de la agenda/el calendar: se descarta lo escrito en esos campos. */
-  useSource: (key: string, conflicts: Conflict[]) => void
+  takeSource: (key: string, conflicts: Conflict[]) => void
   /** Una fila con trabajo manual que ya no está en las fuentes: llevarlo a la fila nueva / dejarla como agregada a mano / sacarla */
   moveOrphan: (o: Orphan) => void
   keepOrphan: (o: Orphan) => void
@@ -66,6 +66,9 @@ type Actions = {
 }
 
 const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], ranges: {} }
+
+/** Los campos de una edición, menos los que están en conflicto. */
+const withoutFields = (e: Edits[string] | undefined, conflicts: Conflict[]) => Object.fromEntries(Object.entries(e ?? {}).filter(([f]) => !conflicts.some((c) => c.field === f)))
 
 const without = <T,>(o: Record<string, T>, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key))
 
@@ -144,11 +147,8 @@ export const useStore = create<UserData & Actions>()(
         }),
       keepMine: (key, conflicts) =>
         set((s) => ({ bases: { ...s.bases, [key]: { ...s.bases[key], ...Object.fromEntries(conflicts.map((c) => [c.field, c.now])) } } })),
-      useSource: (key, conflicts) =>
-        set((s) => {
-          const drop = (e: Edits[string] = {}) => Object.fromEntries(Object.entries(e).filter(([f]) => !conflicts.some((c) => c.field === f)))
-          return { edits: { ...s.edits, [key]: drop(s.edits[key]) }, bases: { ...s.bases, [key]: drop(s.bases[key]) } }
-        }),
+      takeSource: (key, conflicts) =>
+        set((s) => ({ edits: { ...s.edits, [key]: withoutFields(s.edits[key], conflicts) }, bases: { ...s.bases, [key]: withoutFields(s.bases[key], conflicts) } })),
       moveOrphan: (o) =>
         set((s) => {
           const to = o.movedTo

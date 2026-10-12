@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "lint": "oxlint --deny-warnings .",
+    "build": "npm run lint && tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "node --test --test-timeout=5000 tests/*.test.ts"
   },
@@ -24,6 +25,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "daisyui": "^5.7.47",
+    "oxlint": "^1.87.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.2"

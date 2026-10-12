@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { normName } from '../agenda.ts'
-import { addDaysTo, isoOf, mondayOf } from '../dates.ts'
+import { addDaysTo, mondayOf, today } from '../dates.ts'
 import { longDate } from '../format.ts'
 import { useAgenda } from '../hooks.ts'
 import { classifyEvents, describeEvent, type EventStatus } from '../ics.ts'
@@ -10,7 +10,7 @@ import { AgendaCells, EventRaw } from './SourceParts.tsx'
 
 const PAGE = 60
 /** Desde cuándo se muestra por defecto: la semana pasada. */
-const recent = () => addDaysTo(mondayOf(isoOf(new Date())), -7)
+const recent = () => addDaysTo(mondayOf(today()), -7)
 
 const STATUS: Record<EventStatus['status'], { label: string; cls: string }> = {
   surgery: { label: 'Cirugía', cls: 'badge-primary badge-soft' },
@@ -62,7 +62,7 @@ function AgendaOriginals() {
     const from = recent()
     return rows
       .filter((r) => (!recentOnly || (r.date && r.date >= from)) && (!q || normName(r.cells.join(' ')).includes(q)))
-      .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.line - b.line)
+      .toSorted((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999') || a.line - b.line)
   }, [rows, query, recentOnly])
 
   if (!file) return <p className="py-6 text-center text-base-content/60">Todavía no cargaste la agenda.</p>
@@ -102,7 +102,7 @@ function CalendarOriginals() {
   const [showIgnored, setShowIgnored] = useState(false)
   const [limit, setLimit] = useState(PAGE)
 
-  const all = useMemo(() => calendars.flatMap((c) => c.events).sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)), [calendars])
+  const all = useMemo(() => calendars.flatMap((c) => c.events).toSorted((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)), [calendars])
   const found = useMemo(() => {
     const q = normName(query)
     const from = recent()

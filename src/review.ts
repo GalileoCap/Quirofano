@@ -63,7 +63,7 @@ export function findOrphans(p: {
     const movedTo = p.present.find((r) => r.date !== snap.date && !hasText(p.edits[r.key]) && same(r, snap))
     out.push({ key, snap, edit: p.edits[key] ?? {}, included: !!p.included[key], movedTo })
   }
-  return out.sort((a, b) => a.snap.date.localeCompare(b.snap.date))
+  return out.toSorted((a, b) => a.snap.date.localeCompare(b.snap.date))
 }
 
 export type Novelty = {
@@ -106,5 +106,5 @@ export function diffRows(before: Row[], after: Row[], edits: EditsByKey, include
     }))
     if (changes.length) out.push({ kind: 'changed', key: b.key, date: b.date, name: b.name, surgery: b.surgery, changes })
   }
-  return out.sort((x, y) => x.date.localeCompare(y.date) || x.name.localeCompare(y.name))
+  return out.toSorted((x, y) => x.date.localeCompare(y.date) || x.name.localeCompare(y.name))
 }

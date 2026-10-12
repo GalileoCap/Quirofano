@@ -10,9 +10,10 @@ Las reglas de trabajo son las de session-kit (`~/.claude/CLAUDE.md`). Este archi
 
 - `npm run dev`: Vite en el puerto 3003 (ver `.claude/launch.json`).
 - `npm test`: tests con el runner de Node (`tests/*.test.ts`, usan las fuentes `.ts` directo, por eso los imports llevan extensión). Cada test tiene 5 segundos de tope (`--test-timeout`). La salida va a un archivo, nunca a un pipe.
-- `npm run build`: `tsc --noEmit` y build de Vite a `dist/`.
+- `npm run lint`: oxlint (`.oxlintrc.json`: correctness y suspicious como error) con `--deny-warnings`. Cero avisos, sin supresiones.
+- `npm run build`: lint, `tsc --noEmit` y build de Vite a `dist/`.
 
-Antes de dar algo por terminado: `npx tsc --noEmit`, `npm test`, `npm run build` sin avisos, y mirarlo en el navegador (móvil y escritorio). Se dice qué escenarios se probaron y cuáles no.
+Antes de dar algo por terminado: `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build` sin avisos, y mirarlo en el navegador (móvil y escritorio). Se dice qué escenarios se probaron y cuáles no.
 
 ## Datos de pacientes
 

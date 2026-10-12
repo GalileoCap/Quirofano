@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { isoOf } from '../dates.ts'
+import { today } from '../dates.ts'
 import { useAgenda, useCalendarEvents } from '../hooks.ts'
 import { loadAgenda, loadCalendars } from '../load.ts'
 import { useSources, useStore, type UserData } from '../store.ts'
@@ -25,8 +25,8 @@ export function AgendaCard() {
   const agenda = useSources((s) => s.agenda)
   const removeAgenda = useSources((s) => s.removeAgenda)
   const rows = useAgenda()
-  const today = isoOf(new Date())
-  const upcoming = rows.filter((r) => r.date && r.date >= today).length
+  const from = today()
+  const upcoming = rows.filter((r) => r.date && r.date >= from).length
   return (
     <Card
       title="Agenda quirúrgica"

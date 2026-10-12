@@ -39,3 +39,6 @@ export const mondayOf = (date: string) => fromDay(toDay(date) - ((dayOfWeek(date
 const pad = (n: number) => String(n).padStart(2, '0')
 /** 'YYYY-MM-DD' de un Date en hora local (lo que FullCalendar entrega para cada celda). */
 export const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+/** Hoy, en hora local. Es el único lugar que lee el reloj para las fechas. */
+export const today = () => isoOf(new Date())

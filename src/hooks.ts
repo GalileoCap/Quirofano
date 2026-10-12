@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { parseAgenda } from './agenda.ts'
 import { applyEdits, sortRows, weekRange } from './checklist.ts'
-import { addDaysTo, isoOf, mondayOf } from './dates.ts'
+import { addDaysTo, mondayOf, today } from './dates.ts'
 import { classifyEvents } from './ics.ts'
 import { mergeChecklist } from './merge.ts'
 import { findOrphans, type Orphan } from './review.ts'
@@ -33,7 +33,7 @@ export function useCalendarEvents() {
 export function useSuggestions() {
   const agenda = useAgenda()
   const { events } = useCalendarEvents()
-  return useMemo(() => suggestions(agenda, events, { since: addDaysTo(isoOf(new Date()), -365) }), [agenda, events])
+  return useMemo(() => suggestions(agenda, events, { since: addDaysTo(today(), -365) }), [agenda, events])
 }
 
 export type Checklist = {
@@ -82,7 +82,7 @@ export function useOrphans(): Orphan[] {
   const agenda = useAgenda()
   const { events, problems } = useCalendarEvents()
   const { edits, included, snaps } = useStore()
-  const from = addDaysTo(isoOf(new Date()), -7)
+  const from = addDaysTo(today(), -7)
 
   const mondays = useMemo(() => {
     const set = new Set<string>()
@@ -91,7 +91,7 @@ export function useOrphans(): Orphan[] {
       const m = mondayOf(s.date)
       for (const d of [-7, 0, 7]) set.add(addDaysTo(m, d))
     }
-    return [...set].sort()
+    return [...set].toSorted()
   }, [snaps, from])
 
   const present = useMemo(

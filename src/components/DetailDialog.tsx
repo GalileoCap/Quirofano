@@ -56,7 +56,7 @@ export default function DetailDialog({
 }) {
   const moveRow = useStore((s) => s.moveRow)
   const keepMine = useStore((s) => s.keepMine)
-  const useSource = useStore((s) => s.useSource)
+  const takeSource = useStore((s) => s.takeSource)
   const flags = rowFlags(row)
   const pos = dayRows.findIndex((r) => r.key === row.key)
   const move = (dir: -1 | 1) => moveRow(row.date, dayRows.map((r) => r.key), row.key, dir)
@@ -92,7 +92,7 @@ export default function DetailDialog({
         )}
         {row.conflicts && (
           <div className="mt-3">
-            <Conflicts row={row} onKeepMine={() => keepMine(row.key, row.conflicts ?? [])} onUseSource={() => useSource(row.key, row.conflicts ?? [])} />
+            <Conflicts row={row} onKeepMine={() => keepMine(row.key, row.conflicts ?? [])} onUseSource={() => takeSource(row.key, row.conflicts ?? [])} />
           </div>
         )}
 

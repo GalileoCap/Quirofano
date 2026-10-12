@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { applyEdits } from '../src/checklist.ts'
 import { diffRows, findOrphans, resolveEdit } from '../src/review.ts'
+import { useStore } from '../src/store.ts'
 import { FIELDS, type Fields, type Row } from '../src/types.ts'
 
 // Datos inventados: nunca poner pacientes reales en el repo
@@ -77,4 +78,20 @@ test('diffRows: nuevas, movidas, canceladas y con datos distintos; lo que ya tie
   assert.deepEqual(kinds, { 'PACIENTE 2/00': 'moved', 'PACIENTE 5/00': 'added', 'PACIENTE 3/00': 'removed', 'PACIENTE 4/00': 'changed' })
   // el cirujano de la 4/00 lo editó ella: va por la vía de la confirmación, no como novedad
   assert.equal(diffRows(before, after, { '2026-10-15|4/00': { surgeon: 'LUNA' } }, {}).some((n) => n.kind === 'changed'), false)
+})
+
+// el store guarda en localStorage, que Node no trae
+const memory = new Map<string, string>()
+Object.defineProperty(globalThis, 'localStorage', {
+  value: { getItem: (k: string) => memory.get(k) ?? null, setItem: (k: string, v: string) => void memory.set(k, v), removeItem: (k: string) => void memory.delete(k) },
+})
+
+test('takeSource descarta lo escrito y su base solo en los campos que difieren, y deja los demás', () => {
+  useStore.setState({
+    edits: { 'k|1': { surgeon: 'MIO', eye: 'OD' } },
+    bases: { 'k|1': { surgeon: 'ANTES', eye: 'OD' } },
+  })
+  useStore.getState().takeSource('k|1', [{ field: 'surgeon', mine: 'MIO', was: 'ANTES', now: 'DIAZ' }])
+  assert.deepEqual(useStore.getState().edits['k|1'], { eye: 'OD' })
+  assert.deepEqual(useStore.getState().bases['k|1'], { eye: 'OD' })
 })

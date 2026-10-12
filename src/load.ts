@@ -1,5 +1,5 @@
 import { parseAgenda } from './agenda.ts'
-import { addDaysTo, isoOf, mondayOf } from './dates.ts'
+import { addDaysTo, mondayOf, today } from './dates.ts'
 import { classifyEvents, parseIcs } from './ics.ts'
 import { mergeChecklist } from './merge.ts'
 import { diffRows } from './review.ts'
@@ -23,7 +23,7 @@ function snapshot(): { rows: Row[]; withCalendar: boolean } | null {
   const events = classified.flatMap((c) => c.events)
   const problems = classified.flatMap((c) => c.problems)
   if (!rows.length && !events.length) return null
-  const first = addDaysTo(mondayOf(isoOf(new Date())), -7)
+  const first = addDaysTo(mondayOf(today()), -7)
   const weeks = Array.from({ length: COMPARE_WEEKS }, (_, i) => addDaysTo(first, i * 7))
   return {
     rows: weeks.flatMap((m) => mergeChecklist({ agenda: rows, events, problems, from: m, to: addDaysTo(m, 6) }).rows),
@@ -63,7 +63,7 @@ const KEEP_DAYS = 120
 
 export async function loadCalendars(files: File[]): Promise<LoadResult> {
   const found: CalendarFile[] = []
-  const oldest = addDaysTo(isoOf(new Date()), -KEEP_DAYS)
+  const oldest = addDaysTo(today(), -KEEP_DAYS)
   for (const file of files) {
     const lower = file.name.toLowerCase()
     if (lower.endsWith('.pdf'))
