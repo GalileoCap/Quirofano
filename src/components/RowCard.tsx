@@ -24,6 +24,7 @@ const Detail = ({ label, value }: { label: string; value: string }) =>
 
 export default function RowCard({
   row,
+  presence,
   first,
   last,
   onMove,
@@ -34,6 +35,8 @@ export default function RowCard({
   onSource,
 }: {
   row: Row
+  /** Diferencia de fecha o presencia (sobra, falta, otro día), si la hay */
+  presence?: string
   first: boolean
   last: boolean
   onMove: (dir: -1 | 1) => void
@@ -44,7 +47,7 @@ export default function RowCard({
   onSource: () => void
 }) {
   return (
-    <li className="card card-border bg-base-100">
+    <li className={`card card-border bg-base-100 ${presence ? 'border-l-8 border-error bg-error/10' : ''}`}>
       <div className="card-body gap-2 p-2.5 sm:p-3">
         <div className="flex items-start gap-1.5">
           <div className="flex shrink-0 flex-col">
@@ -60,8 +63,7 @@ export default function RowCard({
               {row.time && <span className="badge badge-sm badge-primary badge-soft tabular-nums">{row.time}</span>}
               <span className="font-bold">{row.name || 'Sin nombre'}</span>
               <span className="text-xs text-base-content/60">{row.hc}</span>
-              {row.source === 'calendar' && <span className="badge badge-sm badge-warning">Solo en el calendar</span>}
-              {row.source === 'manual' && <span className="badge badge-sm badge-ghost">Agregado a mano</span>}
+              {presence && <span className="badge badge-sm badge-error h-auto whitespace-normal py-0.5 text-left font-bold">{presence}</span>}
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm">
               <span>{row.surgery || 'Sin cirugía'}</span>

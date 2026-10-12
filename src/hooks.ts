@@ -64,8 +64,7 @@ export function useChecklist(monday: string): Checklist {
       else kept.push(r)
     }
     for (const x of merged.excluded) {
-      if (included[x.row.key] === true)
-        kept.push({ ...x.row, warning: x.row.warning ?? (x.reason === 'not-in-calendar' ? 'La agenda la tiene este día, pero no está en el calendar.' : undefined) })
+      if (included[x.row.key] === true) kept.push(x.row)
       else excluded.push(x)
     }
     for (const r of manualRows) if (r.date >= from && r.date <= to) kept.push(r)

@@ -4,11 +4,9 @@ import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
 
 const BADGE: Record<Note['kind'], string> = {
-  excluded: 'badge-ghost',
+  presence: 'badge-error h-auto whitespace-normal py-0.5 text-left font-bold',
   confirm: 'badge-warning',
   sources: 'badge-error badge-soft',
-  solo: 'badge-warning badge-soft',
-  manual: 'badge-info badge-soft',
   edited: 'badge-info badge-soft',
   missing: 'badge-ghost border-dashed border-error/50',
 }

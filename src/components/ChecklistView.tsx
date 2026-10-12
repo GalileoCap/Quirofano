@@ -4,7 +4,7 @@ import { addDaysTo, dayOfWeek, mondayOf, today } from '../dates.ts'
 import { DAY_LABELS, shortDate, weekLabel } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
 import { useSources, useStore } from '../store.ts'
-import { EXCLUDED_LABELS } from '../overview.ts'
+import { flagNotes, inFilter, itemsOf, type Filter } from '../overview.ts'
 import type { Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
 import CalendarView from './CalendarView.tsx'
@@ -14,6 +14,7 @@ import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
 import RowDialog from './RowDialog.tsx'
 import SourceDialog from './SourceDialog.tsx'
+import FilterBar from './FilterBar.tsx'
 import OverviewView from './OverviewView.tsx'
 import { NewsCard, Orphans } from './Review.tsx'
 
@@ -30,6 +31,7 @@ export default function ChecklistView() {
   const [editing, setEditing] = useState<string | null>(null)
   const [sourcing, setSourcing] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [filter, setFilter] = useState<Filter>('all')
   const [mode, setMode] = useState<'resumen' | 'detalle' | 'calendario'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
@@ -38,16 +40,20 @@ export default function ChecklistView() {
   const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
   const orphans = useOrphans()
 
+  const items = useMemo(() => itemsOf(rows, excluded), [rows, excluded])
+  const flagsOf = (key: string) => items.find((i) => i.row.key === key)?.flags
   const days = useMemo(
     () =>
       weekDays(monday)
-        .map((date) => ({ date, rows: rows.filter((r) => r.date === date) }))
+        .map((date) => ({ date, rows: items.filter((i) => i.row.date === date && !i.flags.excluded && inFilter(i.flags, filter)).map((i) => i.row) }))
         .filter((d) => d.rows.length),
-    [monday, rows],
+    [monday, items, filter],
   )
+  const shownExcluded = items.filter((i) => i.flags.excluded && inFilter(i.flags, filter))
   const conflicted = rows.filter((r) => r.conflicts)
   const viewingRow = rows.find((r) => r.key === viewing)
   const editingRow = rows.find((r) => r.key === editing)
+  const viewingFlags = viewing ? flagsOf(viewing) : undefined
   const sourcingRow = rows.find((r) => r.key === sourcing) ?? excluded.find((x) => x.row.key === sourcing)?.row
 
   const say = (msg: string) => {
@@ -173,17 +179,20 @@ export default function ChecklistView() {
       {orphans.length > 0 && <Orphans orphans={orphans} />}
       {news && news.items.length > 0 && <NewsCard news={news} onClose={() => setNews(null)} />}
 
+      <FilterBar items={items} filter={filter} onFilter={setFilter} />
+
       {mode === 'resumen' && (
-        <OverviewView monday={monday} rows={rows} excluded={excluded} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
+        <OverviewView monday={monday} rows={rows} items={items} filter={filter} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
       )}
 
       {mode === 'calendario' && (
-        <CalendarView from={range.from} to={range.to} rows={rows} excluded={excluded} onView={setViewing} onSource={setSourcing} />
+        <CalendarView from={range.from} to={range.to} items={items} filter={filter} onView={setViewing} onSource={setSourcing} />
       )}
 
       {mode === 'detalle' && !days.length && (
         <p className="py-8 text-center text-base-content/60">
-          No hay cirugías esta semana{excluded.length ? ' (hay algunas sin incluir más abajo)' : ''}.
+          {filter === 'all' ? 'No hay cirugías esta semana' : 'Ninguna cirugía en este filtro'}
+          {shownExcluded.length ? ' (hay algunas sin incluir más abajo)' : ''}.
         </p>
       )}
 
@@ -205,6 +214,7 @@ export default function ChecklistView() {
                 <RowCard
                   key={r.key}
                   row={r}
+                  presence={flagsOf(r.key) && flagNotes(flagsOf(r.key)!).find((n) => n.kind === 'presence')?.text}
                   first={i === 0}
                   last={i === dayRows.length - 1}
                   onMove={(dir) => moveRow(date, keys, r.key, dir)}
@@ -220,26 +230,28 @@ export default function ChecklistView() {
         )
       })}
 
-      {mode === 'detalle' && excluded.length > 0 && (
+      {mode === 'detalle' && shownExcluded.length > 0 && (
         <section className="card card-border bg-base-100">
           <div className="card-body gap-2 p-3">
             <div className="flex items-center gap-2">
-              <h3 className="card-title flex-1 text-base">Sin incluir ({excluded.length})</h3>
-              <button className="btn btn-xs" onClick={() => excluded.forEach((x) => x.reason !== 'suspended' && setIncluded(x.row, true))}>
+              <h3 className="card-title flex-1 text-base">Sin incluir ({shownExcluded.length})</h3>
+              <button className="btn btn-xs" onClick={() => shownExcluded.forEach(({ row, flags }) => flags.excluded !== 'suspended' && setIncluded(row, true))}>
                 Incluir todas
               </button>
             </div>
             <p className="text-xs text-base-content/60">
-              Están en la agenda con fecha de esta semana pero no en el calendar (o las sacaste vos o están suspendidas). Incluilas si corresponde.
+              Las sacaste vos o están suspendidas en el calendar. Incluilas si corresponde.
             </p>
             <ul className="flex flex-col gap-1">
-              {excluded.map(({ row, reason }) => (
-                <li key={row.key} className="flex items-center gap-2 text-sm">
+              {shownExcluded.map(({ row, flags }) => (
+                <li key={row.key} className="flex items-center gap-2 border-l-8 border-error bg-error/10 py-1 pl-2 text-sm">
                   <span className="w-12 shrink-0 tabular-nums text-base-content/60">{shortDate(row.date)}</span>
                   <span className="min-w-0 flex-1 truncate">
                     <span className="font-semibold">{row.name}</span> · {row.surgery}
                   </span>
-                  <span className="badge badge-sm badge-ghost hidden whitespace-nowrap sm:inline-flex">{EXCLUDED_LABELS[reason]}</span>
+                  <span className="badge badge-sm badge-error hidden h-auto whitespace-normal py-0.5 text-left font-bold sm:inline-flex">
+                    {flagNotes(flags).find((n) => n.kind === 'presence')?.text}
+                  </span>
                   <button className="btn btn-ghost btn-xs btn-square" title="Ver el origen" aria-label="Ver el origen" onClick={() => setSourcing(row.key)}>
                     <Icon name="fileText" />
                   </button>
@@ -253,9 +265,10 @@ export default function ChecklistView() {
         </section>
       )}
 
-      {viewingRow && (
+      {viewingRow && viewingFlags && (
         <DetailDialog
           row={viewingRow}
+          flags={viewingFlags}
           dayRows={rows.filter((r) => r.date === viewingRow.date)}
           onEdit={() => {
             setViewing(null)

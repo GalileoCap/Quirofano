@@ -96,6 +96,8 @@ export type Origin = {
   event?: CalEvent
   /** Cómo se encontró la fila de la agenda para el evento: por HC o por nombre */
   by?: 'hc' | 'name'
+  /** La fuente que no tiene la cirugía, cuando esa fuente sí tiene cirugías ese día (diferencia entre agenda y calendar) */
+  missing?: 'agenda' | 'calendar'
   /** Fuente de cada campo que tiene valor (el horario y las columnas a mano no figuran) */
   fields: Partial<Record<Field, 'agenda' | 'calendar'>>
 }
@@ -121,5 +123,5 @@ export type Row = Fields & {
 /** Cómo era una fila cuando se la tocó por primera vez (para reconocerla si después desaparece de las fuentes). */
 export type Snap = Fields & { date: string }
 
-/** Una cirugía que no entra al checklist: suspendida, que no está en el calendar, o que se sacó a mano. */
-export type Excluded = { row: Row; reason: 'suspended' | 'not-in-calendar' | 'removed' }
+/** Una cirugía que no entra al checklist: suspendida o sacada a mano. */
+export type Excluded = { row: Row; reason: 'suspended' | 'removed' }

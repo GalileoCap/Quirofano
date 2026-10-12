@@ -1,13 +1,10 @@
-import { useMemo, useState } from 'react'
 import { dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
 import { weekDays } from '../merge.ts'
-import { FILTERS, FILTER_LABELS, REQUIRED_FIELDS, inFilter, rowFlags, type Filter, type Flags } from '../overview.ts'
-import type { Excluded, Field, Row } from '../types.ts'
+import { REQUIRED_FIELDS, inFilter, type Filter, type Item } from '../overview.ts'
+import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
 import { Chips, mark } from './RowParts.tsx'
-
-type Item = { row: Row; flags: Flags }
 
 function Cell({ item, field, className = '' }: { item: Item; field: Field; className?: string }) {
   const value = item.row[field]
@@ -32,7 +29,8 @@ const GRID = 'sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1.5fr)_5.5rem_minmax(0,1fr)
 export default function OverviewView({
   monday,
   rows,
-  excluded,
+  items,
+  filter,
   onView,
   onEdit,
   onSource,
@@ -40,43 +38,29 @@ export default function OverviewView({
 }: {
   monday: string
   rows: Row[]
-  excluded: Excluded[]
+  /** Las del checklist y las de "Sin incluir", con sus marcas */
+  items: Item[]
+  filter: Filter
   onView: (key: string) => void
   onEdit: (key: string) => void
   onSource: (key: string) => void
   onInclude: (row: Row) => void
 }) {
-  const [filter, setFilter] = useState<Filter>('all')
-
-  const items = useMemo<Item[]>(
-    () => [...rows.map((row) => ({ row, flags: rowFlags(row) })), ...excluded.map(({ row, reason }) => ({ row, flags: rowFlags(row, reason) }))],
-    [rows, excluded],
-  )
-
-  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f, items.filter((i) => inFilter(i.flags, f)).length])) as Record<Filter, number>, [items])
-
   const days = weekDays(monday)
     .map((date) => ({
       date,
       shown: items.filter((i) => i.row.date === date && inFilter(i.flags, filter)),
       included: rows.filter((r) => r.date === date).length,
       all: items.filter((i) => i.row.date === date).length,
+      diffs: items.filter((i) => i.row.date === date && i.flags.presence).length,
     }))
     .filter((d) => d.shown.length)
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filtrar">
-        {FILTERS.map((f) => (
-          <button key={f} className={`btn btn-sm shrink-0 ${filter === f ? 'btn-primary' : 'btn-soft'}`} aria-pressed={filter === f} disabled={f !== 'all' && !counts[f] && filter !== f} onClick={() => setFilter(f)}>
-            {FILTER_LABELS[f]} <span className="badge badge-xs">{counts[f]}</span>
-          </button>
-        ))}
-      </div>
-
       {!days.length && <p className="py-8 text-center text-base-content/60">{filter === 'all' ? 'No hay cirugías esta semana.' : 'Ninguna cirugía en este filtro.'}</p>}
 
-      {days.map(({ date, shown, included, all }) => (
+      {days.map(({ date, shown, included, all, diffs }) => (
         <section key={date} className="flex flex-col gap-1">
           <h3 className="flex items-baseline gap-2 px-1">
             <span className="font-display text-lg font-semibold italic text-primary">{DAY_LABELS[dayOfWeek(date)]}</span>
@@ -86,15 +70,16 @@ export default function OverviewView({
                 ? `${included} ${included === 1 ? 'cirugía' : 'cirugías'}${all > included ? ` · ${all - included} sin incluir` : ''}`
                 : `${shown.length} de ${all}`}
             </span>
+            {diffs > 0 && filter === 'all' && <span className="badge badge-sm badge-error font-bold">{diffs} de fecha o presencia</span>}
           </h3>
           <ul className="card card-border divide-y divide-base-300 bg-base-100">
             {shown.map((item) => {
               const { row, flags } = item
               return (
-                <li key={row.key} className={flags.excluded ? 'bg-base-200/60' : ''}>
+                <li key={row.key} className={flags.presence ? 'border-l-8 border-error bg-error/10' : ''}>
                   <div className="flex items-start gap-1 p-1.5 sm:p-2">
                     <button
-                      className={`grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded px-1 text-left text-sm hover:bg-base-200/70 sm:gap-x-3 ${GRID} ${flags.excluded ? 'opacity-70' : ''}`}
+                      className={`grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded px-1 text-left text-sm hover:bg-base-200/70 sm:gap-x-3 ${GRID}`}
                       title={flags.excluded ? 'Ver el origen' : 'Ver el detalle de esta cirugía'}
                       onClick={() => (flags.excluded ? onSource(row.key) : onView(row.key))}
                     >

@@ -97,11 +97,12 @@ body::before {
 .fc .fc-event.q-event .q-event-body { overflow-wrap: anywhere; }
 .fc .fc-event.q-event:hover { background: color-mix(in oklab, var(--color-primary) 16%, var(--color-base-100)); }
 .fc .fc-daygrid-event-harness { margin-bottom: 3px; }
-.fc .fc-event.q-manual { --fc-event-border-color: var(--color-info); --fc-event-bg-color: color-mix(in oklab, var(--color-info) 14%, var(--color-base-100)); }
 .fc .fc-event.q-sources { --fc-event-border-color: var(--color-error); }
 .fc .fc-event.q-confirm { --fc-event-border-color: var(--color-warning); --fc-event-bg-color: color-mix(in oklab, var(--color-warning) 30%, var(--color-base-100)); outline: 2px solid var(--color-warning); outline-offset: 0; }
 .fc .fc-event.q-missing .q-event-body::after { content: ''; display: block; margin-top: 2px; border-top: 1px dashed color-mix(in oklab, var(--color-error) 60%, transparent); }
 .fc .fc-event.q-excluded { --fc-event-bg-color: transparent; border-style: dashed; border-width: 1px 1px 1px 4px; opacity: 0.6; }
+/* Fecha o presencia (sobra, falta, otro día): lo que más tiene que verse, también en las sin incluir */
+.fc .fc-event.q-event.q-presence { --fc-event-border-color: var(--color-error); --fc-event-bg-color: color-mix(in oklab, var(--color-error) 22%, var(--color-base-100)); border-width: 2px 2px 2px 8px; font-weight: 700; opacity: 1; }
 
 /* Teléfono: los inputs en 16px evitan que iOS haga zoom al enfocarlos */
 @media (max-width: 639px) {

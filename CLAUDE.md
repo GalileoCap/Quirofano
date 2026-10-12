@@ -51,7 +51,7 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm run lint`, `npm test`,
 
 ### Cruce
 
-`src/merge.ts`. El calendar manda sobre qué cirugías hay cada día y la agenda aporta los datos. Se cruza por HC (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar queda en "Sin incluir". Sin calendar para esas fechas se usa solo la fecha de la agenda. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
+`src/merge.ts`. El calendar manda sobre qué cirugías hay cada día y la agenda aporta los datos. Se cruza por HC (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar entra igual al checklist y se marca como diferencia ("Está en la agenda pero no en el calendar"); lo que está en el calendar y no en la agenda, también ("Está en el calendar pero no en la agenda"). La fuente que falta queda en `origin.missing` y solo se anota si esa fuente tiene cirugías ese día: sin calendar para esas fechas se usa solo la agenda y eso no es una diferencia. "Sin incluir" queda para lo suspendido y lo que se sacó a mano. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
 
 ### A mano, horario, exportación y rango
 
@@ -81,13 +81,21 @@ Nada del checklist es una caja negra. Cada fila del cruce lleva `origin` (`src/t
 
 El checklist tiene tres vistas (`ChecklistView.tsx`): Resumen (por defecto, `OverviewView.tsx`), Detalle (las tarjetas de siempre) y Calendario (`CalendarView.tsx`, abajo). El resumen es una línea por cirugía, por día, para ver de lejos qué difiere o qué falta.
 
-Tocar una línea abre el detalle (`DetailDialog.tsx`, solo lectura). Muestra las marcas, los datos agrupados, lo que se completa a mano, el aviso de "Difiere" con sus botones, subir/bajar, sacar y el chip de origen. "Editar" en ese modal abre el formulario, así que editar es un segundo click (el lápiz de la fila lo abre directo). Las de "Sin incluir" aparecen en su día, atenuadas, con "Incluir", y tocarlas abre el panel de origen.
+Tocar una línea abre el detalle (`DetailDialog.tsx`, solo lectura). Muestra las marcas, los datos agrupados, lo que se completa a mano, el aviso de "Difiere" con sus botones, subir/bajar, sacar y el chip de origen. "Editar" en ese modal abre el formulario, así que editar es un segundo click (el lápiz de la fila lo abre directo). Las de "Sin incluir" (suspendidas o sacadas a mano) aparecen en su día, con "Incluir" (las sacadas), y tocarlas abre el panel de origen.
 
-Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un filtro con su cuenta:
+Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un filtro con su cuenta. El filtro vale para las tres vistas (`FilterBar.tsx`).
+
+- Fecha o presencia: lo más importante, y por eso va primero y resalta mucho más que el resto (rojo sólido, borde grueso a la izquierda de la fila, y lo mismo en el Calendario y en las tarjetas del Detalle). Es una cirugía que sobra, que falta o que está en otro día, medido contra lo que dicen las fuentes (`Presence`):
+  - Sobra: se agregó a mano y ninguna fuente la tiene ese día.
+  - Falta: las fuentes la tienen y se sacó a mano.
+  - Otro día: la agenda y el calendar la tienen en días distintos.
+  - Está en la agenda pero no en el calendar (o al revés), cuando la otra fuente tiene cirugías ese día.
+  - Suspendida en el calendar.
+  - Si es la misma persona (misma HC, o el mismo nombre si falta) y una está de un lado en un día y del otro lado en otro, la marca dice el otro día ("las fuentes la tienen el 16/10", `elsewhereDates`). Dos cirugías reales de una persona en días distintos no cuentan como movidas.
 
 - Por confirmar: lo escrito a mano que difiere de las fuentes y nadie confirmó (`conflicts`).
-- Agenda ≠ calendar: campos (o la fecha) en que las dos fuentes dicen cosas distintas, filas que están en una sola fuente, y las de "Sin incluir" por no estar en el calendar o estar suspendidas.
-- Editadas: campos en que el checklist difiere de lo que salió del cruce (confirmados o no), filas agregadas a mano y las sacadas a mano.
+- Agenda ≠ calendar: campos en que las dos fuentes dicen cosas distintas (la fecha es de presencia).
+- Editadas: campos en que el checklist difiere de lo que salió del cruce (confirmados o no).
 - Faltan datos: falta alguno de Paciente, HC, Cirugía, Cirujano, Ojo, Duración (`REQUIRED_FIELDS`). Ayudante, anestesia, dioptrías y teléfono pueden faltar sin aviso.
 - Sin completar: Horario, Prequi o HC (check) todavía vacíos (`PENDING_FIELDS`). Son columnas a mano y nunca se completan solas (regla 1).
 
@@ -95,7 +103,7 @@ En la fila, la celda marcada en amarillo es un campo por confirmar, en rojo uno 
 
 ### Vista Calendario
 
-Los días del rango de la semana como columnas, igual que en `../guardias` (FullCalendar 6 con `daygrid`, locale `es`, mismos retoques `.fc` en `index.css`). Una tarjeta por cirugía en el orden del día. Las de "Sin incluir" van al final, punteadas y atenuadas. Los textos de las marcas son los del Resumen (`flagNotes` en `overview.ts`, también salen como tooltip) y se ven en el borde: celeste = a mano, rojo = agenda ≠ calendar, amarillo con contorno = por confirmar. Tocar una cirugía abre el mismo detalle que en el Resumen, y una de "Sin incluir" abre el panel de origen.
+Los días del rango de la semana como columnas, igual que en `../guardias` (FullCalendar 6 con `daygrid`, locale `es`, mismos retoques `.fc` en `index.css`). Una tarjeta por cirugía en el orden del día. Las de "Sin incluir" van al final, punteadas. Los textos de las marcas son los del Resumen (`flagNotes` en `overview.ts`, también salen como tooltip) y se ven en el borde: rojo fuerte con borde grueso = fecha o presencia, rojo fino = agenda ≠ calendar en un campo, amarillo con contorno = por confirmar. Tocar una cirugía abre el mismo detalle que en el Resumen, y una de "Sin incluir" abre el panel de origen.
 
 No hay grilla de horas. El horario es texto libre y casi siempre está vacío (regla 1), así que un eje horario obligaría a leerlo y a calcular el fin con la duración. El horario, si se escribió, se muestra tal cual delante del nombre. En el teléfono el calendario se desliza hacia los costados (`DAY_MIN_REM` por día) en vez de apretar los nombres.
 

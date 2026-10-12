@@ -92,7 +92,7 @@ test('mergeChecklist: cruza calendar y agenda, separa suspendidas y avisa lo que
 
   const res = mergeChecklist({ agenda, events, problems, from: '2026-10-12', to: '2026-10-18' })
   const byName = Object.fromEntries(res.rows.map((r) => [r.name, r]))
-  assert.equal(res.rows.length, 4)
+  assert.equal(res.rows.length, 5)
   assert.equal(byName['PEREZ JUAN'].source, 'both')
   assert.equal(byName['PEREZ JUAN'].phone, '1111')
   assert.equal(byName['PEREZ JUAN'].warning, undefined)
@@ -101,13 +101,12 @@ test('mergeChecklist: cruza calendar y agenda, separa suspendidas y avisa lo que
   assert.match(byName['REPROGRAMADA RITA'].warning!, /rota/)
   // en el calendar pero no en la agenda
   assert.equal(byName['SIN AGENDA SIMON'].source, 'calendar')
-  assert.deepEqual(
-    res.excluded.map((x) => [x.row.name, x.reason]),
-    [
-      ['SUSPENDIDO SOL', 'suspended'],
-      ['SOLO AGENDA SARA', 'not-in-calendar'],
-    ],
-  )
+  assert.equal(byName['SIN AGENDA SIMON'].origin?.missing, 'agenda')
+  // en la agenda pero no en el calendar: entra al checklist igual, y la fuente que falta queda anotada
+  assert.equal(byName['SOLO AGENDA SARA'].source, 'agenda')
+  assert.equal(byName['SOLO AGENDA SARA'].origin?.missing, 'calendar')
+  assert.equal(byName['PEREZ JUAN'].origin?.missing, undefined)
+  assert.deepEqual(res.excluded.map((x) => [x.row.name, x.reason]), [['SUSPENDIDO SOL', 'suspended']])
   assert.equal(res.warnings.length, 1)
 })
 
@@ -115,6 +114,8 @@ test('mergeChecklist: sin calendar en esas fechas usa la fecha de la agenda', ()
   const res = mergeChecklist({ agenda: parseAgenda(agendaCsv), events: [], problems: [], from: '2026-10-12', to: '2026-10-18' })
   assert.equal(res.rows.length, 4)
   assert.equal(res.calendarCovers, false)
+  // sin calendar para esas fechas, que la agenda sea la única fuente no es una diferencia
+  assert.ok(res.rows.every((r) => r.origin?.missing === undefined))
 })
 
 test('ningún campo se completa solo: el horario queda vacío hasta que se escribe, aunque falte la duración', () => {
@@ -160,11 +161,11 @@ test('calendar real: la HC de la descripción cruza aunque el nombre esté mal e
   assert.equal(events.length, 2)
   assert.equal(events[1].name, 'PEREZ JUAN CARLOS')
   const res = mergeChecklist({ agenda, events, problems: [], from: '2026-10-12', to: '2026-10-18' })
-  assert.equal(res.rows.length, 1)
-  assert.equal(res.rows[0].hc, '101/00')
+  // la fila de la agenda que no se cruzó (100/00) entra igual, como una diferencia de presencia
+  assert.deepEqual(res.rows.map((r) => [r.hc, r.origin?.missing]), [['101/00', undefined], ['100/00', 'calendar']])
   assert.equal(res.rows[0].diopters, '+20.00')
   assert.equal(res.rows[0].warning, undefined)
-  assert.deepEqual(res.excluded.map((x) => x.row.hc), ['100/00'])
+  assert.deepEqual(res.excluded, [])
 })
 
 test('un evento con palabras de cirugía pero sin formato se avisa; el resto (feriados, simposios) se ignora', () => {

@@ -4,8 +4,8 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import FullCalendar from '@fullcalendar/react'
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { addDaysTo } from '../dates.ts'
-import { flagNotes, rowFlags, type Flags } from '../overview.ts'
-import type { Excluded, Row } from '../types.ts'
+import { flagNotes, inFilter, type Filter, type Flags, type Item } from '../overview.ts'
+import type { Row } from '../types.ts'
 import Icon from './Icon.tsx'
 
 // Constantes fuera del componente: si cambian de identidad, FullCalendar re-renderiza todo.
@@ -38,9 +38,9 @@ const renderEvent = (arg: EventContentArg) => {
 function classesOf(flags: Flags) {
   const out = ['q-event']
   if (flags.excluded) out.push('q-excluded')
+  if (flags.presence) out.push('q-presence')
   if (flags.confirm.length) out.push('q-confirm')
-  else if (flags.sources.length) out.push('q-sources')
-  if (flags.single === 'manual') out.push('q-manual')
+  else if (flags.sources.some((f) => f !== 'date')) out.push('q-sources')
   if (!flags.excluded && flags.missing.length) out.push('q-missing')
   return out
 }
@@ -49,21 +49,21 @@ function classesOf(flags: Flags) {
 export default function CalendarView({
   from,
   to,
-  rows,
-  excluded,
+  items,
+  filter,
   onView,
   onSource,
 }: {
   from: string
   to: string
-  rows: Row[]
-  excluded: Excluded[]
+  /** Las del checklist y las de "Sin incluir", con sus marcas */
+  items: Item[]
+  filter: Filter
   onView: (key: string) => void
   onSource: (key: string) => void
 }) {
   const events = useMemo<EventInput[]>(() => {
-    const items = [...rows.map((row) => ({ row, flags: rowFlags(row) })), ...excluded.map(({ row, reason }) => ({ row, flags: rowFlags(row, reason) }))]
-    return items.map(({ row, flags }, idx): EventInput => ({
+    return items.filter((i) => inFilter(i.flags, filter)).map(({ row, flags }, idx): EventInput => ({
       id: row.key,
       start: row.date,
       allDay: true,
@@ -72,7 +72,7 @@ export default function CalendarView({
       // el orden del día es el del checklist; las sin incluir van al final
       extendedProps: { idx, row, flags, notes: flagNotes(flags).map((n) => n.text).join('\n') } satisfies Ext & { idx: number },
     }))
-  }, [rows, excluded])
+  }, [items, filter])
 
   // `end` es exclusivo en FullCalendar: el rango llega hasta `to` inclusive
   const visibleRange = useMemo(() => ({ start: from, end: addDaysTo(to, 1) }), [from, to])

@@ -1,6 +1,6 @@
 import { dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, FIELD_LABELS, longDate } from '../format.ts'
-import { REQUIRED_FIELDS, rowFlags, type Flags } from '../overview.ts'
+import { REQUIRED_FIELDS, type Flags } from '../overview.ts'
 import { useStore } from '../store.ts'
 import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
@@ -40,6 +40,7 @@ function Manual({ row, field }: { row: Row; field: Field }) {
 /** La cirugía completa, para mirarla cómoda. Editar es otro paso: abre el formulario. */
 export default function DetailDialog({
   row,
+  flags,
   dayRows,
   onEdit,
   onSource,
@@ -47,6 +48,7 @@ export default function DetailDialog({
   onClose,
 }: {
   row: Row
+  flags: Flags
   /** Las cirugías incluidas del mismo día, en orden (para subir y bajar). */
   dayRows: Row[]
   onEdit: () => void
@@ -57,7 +59,6 @@ export default function DetailDialog({
   const moveRow = useStore((s) => s.moveRow)
   const keepMine = useStore((s) => s.keepMine)
   const takeSource = useStore((s) => s.takeSource)
-  const flags = rowFlags(row)
   const pos = dayRows.findIndex((r) => r.key === row.key)
   const move = (dir: -1 | 1) => moveRow(row.date, dayRows.map((r) => r.key), row.key, dir)
 

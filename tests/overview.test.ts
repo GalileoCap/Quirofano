@@ -51,7 +51,7 @@ const find = (rows: Row[], name: string) => rows.find((r) => r.name === name)!
 
 test('una fila donde la agenda y el calendar coinciden no tiene diferencias, y lo que falta a mano se ve aparte', () => {
   const f = rowFlags(find(week().rows, 'PEREZ JUAN'))
-  assert.deepEqual([f.sources, f.confirm, f.edited, f.missing, f.single, f.warning], [[], [], [], [], undefined, false])
+  assert.deepEqual([f.sources, f.confirm, f.edited, f.missing, f.presence, f.warning], [[], [], [], [], undefined, false])
   // el horario, el prequi y la HC se escriben a mano: al principio están todos sin completar
   assert.deepEqual(f.pending, ['time', 'prequi', 'hcCheck'])
 })
@@ -64,9 +64,9 @@ test('agenda y calendar que dicen cosas distintas en un campo, o en la fecha, se
 
 test('una fila que está en una sola fuente lo dice, y lo que no tiene se marca como faltante', () => {
   const f = rowFlags(find(week().rows, 'SIN AGENDA SIMON'))
-  assert.equal(f.single, 'calendar')
+  assert.deepEqual(f.presence, { kind: 'only', missingIn: 'agenda' })
   assert.deepEqual(f.missing.toSorted(), ['duration', 'eye', 'hc'])
-  assert.equal(rowFlags({ ...find(week().rows, 'SIN AGENDA SIMON'), source: 'manual' }).single, 'manual')
+  assert.deepEqual(rowFlags({ ...find(week().rows, 'SIN AGENDA SIMON'), source: 'manual' }).presence, { kind: 'extra' })
 })
 
 test('lo escrito a mano que difiere de las fuentes se marca como editado, y como por confirmar si nadie lo confirmó', () => {
@@ -97,19 +97,23 @@ test('lo que se escribe a mano para completar un dato faltante lo saca de faltan
 test('cada filtro deja pasar a las filas que corresponden', () => {
   const { rows } = week()
   const names = (filter: Parameters<typeof inFilter>[1]) => rows.filter((r) => inFilter(rowFlags(r), filter)).map((r) => r.name).toSorted()
-  assert.deepEqual(names('all'), ['GOMEZ ANA', 'LOPEZ RITA', 'PEREZ JUAN', 'SIN AGENDA SIMON'])
-  assert.deepEqual(names('sources'), ['GOMEZ ANA', 'LOPEZ RITA', 'SIN AGENDA SIMON'])
+  assert.deepEqual(names('all'), ['GOMEZ ANA', 'LOPEZ RITA', 'PEREZ JUAN', 'RAMOS EVA', 'SIN AGENDA SIMON'])
+  // "Agenda ≠ calendar" es solo de campos; que esté en otro día o en una sola fuente es de fecha o presencia
+  assert.deepEqual(names('sources'), ['GOMEZ ANA'])
+  assert.deepEqual(names('presence'), ['LOPEZ RITA', 'RAMOS EVA', 'SIN AGENDA SIMON'])
   assert.deepEqual(names('missing'), ['SIN AGENDA SIMON'])
   assert.deepEqual(names('confirm'), [])
 })
 
-test('lo que quedó sin incluir cuenta como diferencia entre agenda y calendar, salvo lo que se sacó a mano', () => {
-  const ramos = rowFlags(find(week().excluded.map((x) => x.row), 'RAMOS EVA'), 'not-in-calendar')
-  assert.equal(inFilter(ramos, 'sources'), true)
-  assert.equal(inFilter(ramos, 'missing'), false)
+test('lo que está en la agenda y no en el calendar entra al checklist como una diferencia de presencia, y lo sacado a mano también', () => {
+  const { rows, excluded } = week()
+  assert.deepEqual(excluded, [])
+  const ramos = rowFlags(find(rows, 'RAMOS EVA'))
+  assert.deepEqual(ramos.presence, { kind: 'only', missingIn: 'calendar' })
+  assert.deepEqual([inFilter(ramos, 'presence'), inFilter(ramos, 'sources'), inFilter(ramos, 'missing')], [true, false, false])
+  assert.deepEqual(rowFlags(find(rows, 'SIN AGENDA SIMON')).presence, { kind: 'only', missingIn: 'agenda' })
   const sacada = rowFlags(find(week().rows, 'PEREZ JUAN'), 'removed')
-  assert.equal(inFilter(sacada, 'sources'), false)
-  assert.equal(inFilter(sacada, 'edited'), true)
+  assert.deepEqual([inFilter(sacada, 'presence'), inFilter(sacada, 'edited')], [true, false])
 })
 
 test('los textos de las marcas no repiten como editado lo que ya figura por confirmar, y lo faltante solo se avisa en filas incluidas', () => {
@@ -118,6 +122,6 @@ test('los textos de las marcas no repiten como editado lo que ya figura por conf
   const [edited] = applyEdits(rows, { [gomez.key]: { eye: 'DERECHO', anesthesia: 'GENERAL' } }, { [gomez.key]: { anesthesia: gomez.anesthesia } }).filter((r) => r.name === 'GOMEZ ANA')
   assert.deepEqual(flagNotes(rowFlags(edited)).map((n) => n.text), ['Sin confirmar: Ojo', 'Agenda ≠ calendar: Cirujano', 'Editado: Anestesia'])
   const simon = find(rows, 'SIN AGENDA SIMON')
-  assert.deepEqual(flagNotes(rowFlags(simon)).map((n) => n.text), ['Solo calendar', 'Falta: HC, Ojo, Duración'])
-  assert.deepEqual(flagNotes(rowFlags(simon, 'not-in-calendar')).map((n) => n.text), ['No está en el calendar'])
+  assert.deepEqual(flagNotes(rowFlags(simon)).map((n) => n.text), ['Está en el calendar pero no en la agenda', 'Falta: HC, Ojo, Duración'])
+  assert.deepEqual(flagNotes(rowFlags(simon, 'removed')).map((n) => n.text), ['Falta: la sacaste a mano'])
 })
