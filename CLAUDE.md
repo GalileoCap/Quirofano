@@ -33,6 +33,21 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm run lint`, `npm test`,
 2. Todos los campos son inputs de texto libre, también Ojo, Dioptrías y Duración (no selectores ni números). La persona necesita poder agregar notas en cualquiera (`60 min, si hay tiempo`, `OD, pero revisar`).
 3. Sugerencias, no automatismos. Los campos Cirugía, Cirujano, Ayudante, Ojo, Anestesia, Contacto y Duración ofrecen sugerencias (`<datalist>`) armadas con los valores que ya hay en la agenda y el calendar, del último año, de la más usada a la menos usada (`src/suggest.ts`). Elegir una sugerencia solo completa ese campo y nunca toca otro. Se puede escribir cualquier otra cosa.
 
+## Lo guardado en el navegador y sus migraciones
+
+Todo vive en `localStorage` con zustand persist, en dos claves (`src/store.ts`): `quiro-v1` (lo escrito a mano, las tareas y las novedades de la última carga; `useStore`) y `quiro-sources-v1` (agenda y eventos del calendar; `useSources`). La versión va dentro de lo guardado (`{"state":…,"version":N}`) y las claves no se renombran nunca: `v1` en el nombre es histórico, no la versión.
+
+Todo lo que tenga que ver con la forma de lo guardado está en `src/persist.ts`. Para cambiarla:
+
+1. Subir `USER_VERSION` (o `SOURCES_VERSION`).
+2. Agregar en `USER_MIGRATIONS` (o `SOURCES_MIGRATIONS`) el paso que lleva de la versión anterior a la nueva; la clave es la versión de la que parte. `runMigrations` los encadena en orden y lanza si falta uno.
+3. Si cambia la forma de un campo, ajustar su lector (`readUserData`, `readSources`, `readNews`). Esos lectores corren siempre después de la migración y también con lo que está en la versión actual: lo que falta queda vacío (así una columna nueva en `FIELDS` no rompe filas viejas) y lo que no se entiende se descarta entrada por entrada, sin tumbar la app.
+4. Escribir el test del paso con un estado de la versión vieja (`tests/persist.test.ts`).
+
+El respaldo de Datos (`writeBackup`/`readBackup`) lleva `version` y pasa por las mismas migraciones. Los respaldos anteriores no la traen y se leen como versión 1. Uno de una versión más nueva que la de la app se rechaza con un aviso en vez de leerse a medias.
+
+Antes de leer lo guardado con otra versión (más vieja, más nueva o ilegible), `quiro-v1` se copia tal cual a `quiro-v1.antes-vN` (si esa copia ya existe no se pisa), para que una migración que sale mal o una pestaña con la app vieja no destruya lo escrito. La agenda y los calendarios no se copian: se vuelven a cargar. Las copias no se borran solas.
+
 ## Cómo se arma el checklist
 
 ### Agenda

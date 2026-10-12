@@ -2,7 +2,8 @@ import { useRef } from 'react'
 import { today } from '../dates.ts'
 import { useAgenda, useCalendarEvents } from '../hooks.ts'
 import { loadAgenda, loadCalendars } from '../load.ts'
-import { useSources, useStore, type UserData } from '../store.ts'
+import { readBackup, writeBackup } from '../persist.ts'
+import { useSources, useStore } from '../store.ts'
 import Card from './Card.tsx'
 import FileDrop from './FileDrop.tsx'
 import Icon from './Icon.tsx'
@@ -87,8 +88,7 @@ function DataCard() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const exportJson = () => {
-    const { edits, bases, snaps, order, included, manualRows, ranges, acks, tasks } = store
-    const blob = new Blob([JSON.stringify({ edits, bases, snaps, order, included, manualRows, ranges, acks, tasks }, null, 2)], { type: 'application/json' })
+    const blob = new Blob([writeBackup(store)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `quiro-${new Date().toISOString().slice(0, 10)}.json`
@@ -97,13 +97,9 @@ function DataCard() {
   }
 
   const importJson = async (file: File) => {
-    try {
-      const data = JSON.parse(await file.text()) as Partial<UserData>
-      if (typeof data !== 'object' || !data || !('edits' in data)) throw new Error('formato')
-      if (confirm('Esto reemplaza todo lo que escribiste a mano (notas, orden, filas agregadas). ¿Seguir?')) importUserData(data)
-    } catch {
-      alert('No pude leer ese archivo.')
-    }
+    const backup = readBackup(await file.text())
+    if (!backup.ok) return alert(backup.error)
+    if (confirm('Esto reemplaza todo lo que escribiste a mano (notas, orden, filas agregadas). ¿Seguir?')) importUserData(backup.data)
   }
 
   return (

@@ -2,10 +2,10 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import type { DayRange, Edits } from './checklist.ts'
 import type { RawEvent } from './ics.ts'
+import { SOURCES_MIGRATIONS, SOURCES_VERSION, USER_MIGRATIONS, USER_VERSION, blankFields, readPersisted, readSources, runMigrations, versionOf, type Persisted } from './persist.ts'
 import { snapOf, type Novelty, type Orphan } from './review.ts'
 import { NO_TASK, type TaskState } from './tasks.ts'
 import type { Conflict, Field, Row, Snap } from './types.ts'
-import { FIELDS } from './types.ts'
 
 export type CalendarFile = { name: string; events: RawEvent[] }
 
@@ -95,29 +95,46 @@ const forget = (s: UserData, key: string, date: string): Partial<UserData> => ({
 
 // todo queda en este navegador: nada de pacientes sale a ningún servidor.
 // Si el almacenamiento está lleno o bloqueado la app sigue andando, solo que no recuerda nada al cerrarla.
-const safeStorage = createJSONStorage(() => ({
-  getItem: (k) => {
-    try {
-      return localStorage.getItem(k)
-    } catch {
-      return null
-    }
-  },
-  setItem: (k, v) => {
-    try {
-      localStorage.setItem(k, v)
-    } catch (e) {
-      console.warn('No pude guardar en este navegador', e)
-    }
-  },
-  removeItem: (k) => {
-    try {
-      localStorage.removeItem(k)
-    } catch {
-      /* nada que hacer */
-    }
-  },
-}))
+// Con `version`, antes de leer algo guardado con otra versión se deja una copia tal cual (`quiro-v1.antes-v0`):
+// si una migración sale mal o se abre una versión vieja de la app, lo guardado no se pierde con la próxima escritura.
+const keepCopy = (key: string, raw: string, version: number) => {
+  const saved = versionOf(raw)
+  if (saved === version) return
+  const copy = `${key}.antes-v${saved ?? 'ilegible'}`
+  try {
+    if (localStorage.getItem(copy) === null) localStorage.setItem(copy, raw)
+  } catch (e) {
+    // sin lugar para la copia se sigue leyendo igual
+    console.warn('No pude guardar la copia de lo anterior', e)
+  }
+}
+
+const safeStorage = (version?: number) =>
+  createJSONStorage(() => ({
+    getItem: (k) => {
+      try {
+        const raw = localStorage.getItem(k)
+        if (raw !== null && version !== undefined) keepCopy(k, raw, version)
+        return raw
+      } catch {
+        return null
+      }
+    },
+    setItem: (k, v) => {
+      try {
+        localStorage.setItem(k, v)
+      } catch (e) {
+        console.warn('No pude guardar en este navegador', e)
+      }
+    },
+    removeItem: (k) => {
+      try {
+        localStorage.removeItem(k)
+      } catch {
+        /* nada que hacer */
+      }
+    },
+  }))
 
 /** La agenda y los calendarios cargados: en su propio almacenamiento porque pesan ~1 MB y casi nunca cambian. */
 export const useSources = create<SourceState & SourceActions>()(
@@ -133,10 +150,12 @@ export const useSources = create<SourceState & SourceActions>()(
     }),
     {
       name: 'quiro-sources-v1',
-      version: 2,
-      storage: safeStorage,
-      // v1 guardaba el .ics entero; ahora se guardan solo los eventos que sirven (hay que volver a cargar los calendarios)
-      migrate: (persisted) => ({ agenda: (persisted as { agenda?: SourceState['agenda'] }).agenda ?? null, calendars: [] }),
+      version: SOURCES_VERSION,
+      // la agenda y los calendarios se pueden volver a cargar: no hace falta copia de lo viejo
+      storage: safeStorage(),
+      partialize: (s) => ({ agenda: s.agenda, calendars: s.calendars }),
+      migrate: (persisted, version) => readSources(runMigrations(persisted, version, SOURCES_VERSION, SOURCES_MIGRATIONS)),
+      merge: (persisted, current) => ({ ...current, ...readSources(persisted) }),
     },
   ),
 )
@@ -202,7 +221,7 @@ export const useStore = create<UserData & Actions>()(
         set((s) => ({ included: { ...s.included, [row.key]: value }, snaps: s.snaps[row.key] || row.source === 'manual' ? s.snaps : { ...s.snaps, [row.key]: snapOf(row) } })),
       addManualRow: (date) => {
         const key = `manual-${crypto.randomUUID()}`
-        const row = { ...(Object.fromEntries(FIELDS.map((f) => [f, ''])) as Record<Field, string>), key, date, source: 'manual' as const }
+        const row = { ...blankFields(), key, date, source: 'manual' as const }
         set((s) => ({ manualRows: [...s.manualRows, row] }))
         return key
       },
@@ -213,13 +232,23 @@ export const useStore = create<UserData & Actions>()(
     }),
     {
       name: 'quiro-v1',
-      version: 1,
-      storage: safeStorage,
-      // en el merge de datos viejos, los ajustes nuevos toman su valor por defecto; la hora de inicio del día ya no existe
-      merge: (persisted, current) => {
-        const { dayStart: _old, ...saved } = persisted as Partial<UserData> & { dayStart?: string }
-        return { ...current, ...saved }
-      },
+      version: USER_VERSION,
+      storage: safeStorage(USER_VERSION),
+      partialize: (s): Persisted => ({
+        edits: s.edits,
+        bases: s.bases,
+        snaps: s.snaps,
+        order: s.order,
+        included: s.included,
+        manualRows: s.manualRows,
+        ranges: s.ranges,
+        acks: s.acks,
+        tasks: s.tasks,
+        news: s.news,
+      }),
+      migrate: (persisted, version) => readPersisted(runMigrations(persisted, version, USER_VERSION, USER_MIGRATIONS)),
+      // lo guardado pasa siempre por el lector: lo que falta queda vacío y lo que no se reconoce se descarta
+      merge: (persisted, current) => ({ ...current, ...readPersisted(persisted) }),
     },
   ),
 )
