@@ -1,3 +1,4 @@
+import { clean } from './agenda.ts'
 import { addDaysTo } from './dates.ts'
 import type { Row } from './types.ts'
 
@@ -50,4 +51,18 @@ export function weekTasks(monday: string, tasks: Record<string, TaskState>, now:
 /** Las tareas de cada cirugía. Van por la clave de la fila (`fecha|HC`): si la cirugía cambia de día, es otra cirugía para sus tareas. */
 export function surgeryTasks(rows: Row[], tasks: Record<string, TaskState>, now: string): (TaskItem & { row: Row })[] {
   return rows.flatMap((row) => TASK_DEFS.filter((d) => d.scope === 'surgery').map((d) => ({ ...itemOf(d, row.key, row.date, tasks, now), row })))
+}
+
+/** La revisión del lente de una cirugía, dentro de la tarea de la semana "Revisar que haya suficientes lentes". */
+export type LensCheck = { key: string; row: Row; hasDiopters: boolean; state: TaskState }
+
+/**
+ * Una revisión por cirugía. Tildada quiere decir "ya revisé el lente"; si la cirugía no tiene dioptrías, "así está bien".
+ * Va por la clave de la fila, con un prefijo propio para no chocar con las tareas de la cirugía.
+ */
+export function lensChecks(rows: Row[], tasks: Record<string, TaskState>): LensCheck[] {
+  return rows.map((row) => {
+    const key = `lente|${row.key}`
+    return { key, row, hasDiopters: !!clean(row.diopters), state: tasks[key] ?? NO_TASK }
+  })
 }

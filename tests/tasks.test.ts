@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { NO_TASK, TASK_DEFS, surgeryTasks, taskStatus, weekTasks, type TaskState } from '../src/tasks.ts'
+import { NO_TASK, TASK_DEFS, lensChecks, surgeryTasks, taskStatus, weekTasks, type TaskState } from '../src/tasks.ts'
 import { useStore } from '../src/store.ts'
 import { FIELDS, type Fields, type Row, type Source } from '../src/types.ts'
 
@@ -244,4 +244,67 @@ test('lo guardado con setTask bajo la clave de una tarea es lo que weekTasks y s
   const { tasks } = useStore.getState()
   assert.deepEqual(weekTasks(MONDAY, tasks, '2026-10-12').map((i) => i.state), [{ done: true, note: '' }, NO_TASK])
   assert.deepEqual(surgeryTasks([row], tasks, '2026-10-12').map((i) => i.state), [{ done: false, note: 'al celular de la hija' }])
+})
+
+// revisión de lentes por cirugía
+
+const withDiopters = (date: string, hc: string, diopters: string): Row => ({ ...mk(date, hc), diopters })
+
+test('hay una revisión de lentes por fila, en el orden dado y con su fila; sin filas no hay ninguna', () => {
+  const rows = [mk('2026-10-14', '1/00'), mk('2026-10-13', '2/00'), mk('2026-10-16', '3/00')]
+  const checks = lensChecks(rows, {})
+  assert.equal(checks.length, 3)
+  assert.deepEqual(checks.map((c) => c.row), rows)
+  assert.deepEqual(checks.map((c) => c.state), [NO_TASK, NO_TASK, NO_TASK])
+  assert.deepEqual(lensChecks([], {}), [])
+})
+
+test('hasDiopters es verdadero con cualquier contenido real y falso con vacío, espacios o solo marcas de "nada"', () => {
+  const sin = ['', '   ', '.', '-', '--', ' . ']
+  const con = ['+21.00', '22', '19.50/10', '23.5/23,00', 'OD +21']
+  const rows = [...sin, ...con].map((d, i) => withDiopters('2026-10-14', `${i + 1}/00`, d))
+  assert.deepEqual(
+    lensChecks(rows, {}).map((c) => c.hasDiopters),
+    [...sin.map(() => false), ...con.map(() => true)],
+  )
+})
+
+test('las claves de la revisión de lentes son estables y distintas por cirugía, también con la misma HC en dos fechas', () => {
+  const rows = [mk('2026-10-14', '1/00'), mk('2026-10-16', '1/00'), mk('2026-10-14', '2/00')]
+  const a = lensChecks(rows, {})
+  assert.deepEqual(keys(lensChecks(rows, { 'x|1': { done: true, note: '' } })), keys(a))
+  assert.equal(new Set(keys(a)).size, 3)
+})
+
+test('la clave de la revisión de lentes no choca con la de "llamar" de la misma cirugía ni con las de la semana', () => {
+  const rows = [mk('2026-10-14', '1/00'), mk('2026-10-16', '1/00'), mk('2026-10-14', '2/00')]
+  const lentes = keys(lensChecks(rows, {}))
+  const llamar = keys(surgeryTasks(rows, {}, '2026-10-12'))
+  const semana = [...keys(weekTasks(MONDAY, {}, '2026-10-12')), ...keys(weekTasks(NEXT_MONDAY, {}, '2026-10-12'))]
+  const todas = [...lentes, ...llamar, ...semana]
+  assert.equal(new Set(todas).size, todas.length)
+  rows.forEach((_, i) => assert.notEqual(lentes[i], llamar[i]))
+})
+
+test('lo guardado bajo la clave de una revisión de lentes vuelve como su estado, solo en esa cirugía', () => {
+  const rows = [mk('2026-10-14', '1/00'), mk('2026-10-16', '1/00'), mk('2026-10-14', '2/00')]
+  const saved: TaskState = { done: true, note: 'sin dioptrías, está bien así' }
+  const again = lensChecks(rows, { [lensChecks(rows, {})[1]!.key]: saved })
+  assert.deepEqual(again.map((c) => c.state), [NO_TASK, saved, NO_TASK])
+})
+
+test('tildar la revisión de lentes con setTask no toca el "llamar" de la misma cirugía, y al revés', () => {
+  reset()
+  const row = withDiopters('2026-10-14', '1/00', '+21.00')
+  const lens = lensChecks([row], useStore.getState().tasks)[0]!
+  const call = surgeryTasks([row], useStore.getState().tasks, '2026-10-12')[0]!
+
+  useStore.getState().setTask(lens.key, { done: true })
+  assert.deepEqual(lensChecks([row], useStore.getState().tasks)[0]!.state, { done: true, note: '' })
+  assert.deepEqual(surgeryTasks([row], useStore.getState().tasks, '2026-10-12')[0]!.state, NO_TASK)
+
+  reset()
+  useStore.getState().setTask(call.key, { done: true, note: 'llamé' })
+  assert.deepEqual(surgeryTasks([row], useStore.getState().tasks, '2026-10-12')[0]!.state, { done: true, note: 'llamé' })
+  assert.deepEqual(lensChecks([row], useStore.getState().tasks)[0]!.state, NO_TASK)
 })

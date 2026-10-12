@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { clean } from '../agenda.ts'
 import { dayOfWeek, today } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
 import { useChecklist } from '../hooks.ts'
 import { useStore } from '../store.ts'
-import { surgeryTasks, weekTasks, type TaskItem, type TaskStatus } from '../tasks.ts'
+import { lensChecks, surgeryTasks, weekTasks, type TaskItem, type TaskStatus } from '../tasks.ts'
 import type { Row } from '../types.ts'
 import Icon from './Icon.tsx'
 import WeekNav from './WeekNav.tsx'
@@ -52,27 +51,41 @@ function TaskLine({ item, title, children }: { item: TaskItem; title: React.Reac
   )
 }
 
-/** Las dioptrías tal como están en cada cirugía, para revisar los lentes: se muestran, no se suman ni se interpretan. */
+/**
+ * Las dioptrías tal como están en cada cirugía, para revisar los lentes: se muestran, no se suman ni se interpretan.
+ * Cada cirugía tiene su check; las que no tienen dioptrías cargadas se resaltan, y el check dice que así está bien.
+ */
 function Diopters({ rows }: { rows: Row[] }) {
-  const withDiopters = rows.filter((r) => clean(r.diopters))
-  const missing = rows.length - withDiopters.length
+  const tasks = useStore((s) => s.tasks)
+  const setTask = useStore((s) => s.setTask)
+  const checks = lensChecks(rows, tasks)
+  const reviewed = checks.filter((c) => c.state.done).length
+  const missing = checks.filter((c) => !c.hasDiopters)
+  const unsettled = missing.filter((c) => !c.state.done).length
   return (
-    <details className="text-sm">
+    <details className="text-sm" open>
       <summary className="cursor-pointer text-base-content/70">
-        Dioptrías de las cirugías de la semana ({withDiopters.length}
-        {missing > 0 ? `, ${missing} sin cargar` : ''})
+        Lentes por cirugía ({reviewed} de {checks.length} revisadas
+        {missing.length > 0 ? `, ${unsettled} sin dioptrías por mirar` : ''})
       </summary>
-      <ul className="mt-1 flex flex-col gap-0.5">
-        {withDiopters.map((r) => (
-          <li key={r.key} className="flex gap-2">
-            <span className="w-20 shrink-0 whitespace-nowrap tabular-nums text-base-content/60">
-              {DAY_LABELS[dayOfWeek(r.date)].slice(0, 3)} {shortDate(r.date)}
-            </span>
-            <span className="min-w-0 flex-1 truncate">{r.name}</span>
-            <span className="font-semibold">{r.diopters}</span>
+      <ul className="mt-1 flex flex-col">
+        {checks.map(({ key, row, hasDiopters, state }) => (
+          <li key={key} className={`border-l-4 ${!hasDiopters && !state.done ? 'border-warning bg-warning/15' : 'border-transparent'}`}>
+            <label className="flex cursor-pointer items-center gap-2 py-1 pl-2">
+              <input type="checkbox" className="checkbox checkbox-primary checkbox-xs" checked={state.done} onChange={(e) => setTask(key, { done: e.target.checked })} />
+              <span className="w-20 shrink-0 whitespace-nowrap tabular-nums text-base-content/60">
+                {DAY_LABELS[dayOfWeek(row.date)].slice(0, 3)} {shortDate(row.date)}
+              </span>
+              <span className={`min-w-0 flex-1 truncate ${state.done ? 'text-base-content/50' : ''}`}>{row.name || 'sin nombre'}</span>
+              {hasDiopters ? (
+                <span className="font-semibold">{row.diopters}</span>
+              ) : (
+                <span className={`badge badge-sm ${state.done ? 'badge-ghost' : 'badge-warning'}`}>{state.done ? 'Sin dioptrías, está bien' : 'Sin dioptrías'}</span>
+              )}
+            </label>
           </li>
         ))}
-        {!withDiopters.length && <li className="text-base-content/60">Ninguna cirugía tiene dioptrías cargadas.</li>}
+        {!checks.length && <li className="text-base-content/60">No hay cirugías esta semana.</li>}
       </ul>
     </details>
   )
