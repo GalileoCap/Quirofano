@@ -3,7 +3,8 @@ import { dayOfWeek, today } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
 import { useChecklist } from '../hooks.ts'
 import { useStore } from '../store.ts'
-import { lensChecks, lensTask, phoneChecks, surgeryTasks, weekTasks, type LensCheck, type PhoneCheck, type TaskItem, type TaskStatus } from '../tasks.ts'
+import { lensChecks, lensTask, nameChecks, phoneChecks, surgeryTasks, weekTasks, type LensCheck, type TaskItem, type TaskState, type TaskStatus } from '../tasks.ts'
+import type { Row } from '../types.ts'
 import Icon from './Icon.tsx'
 import SourceDialog from './SourceDialog.tsx'
 import SurgeryCheckDialog, { type CheckField } from './SurgeryCheckDialog.tsx'
@@ -19,7 +20,7 @@ const STATUS_BADGE: Record<TaskStatus, { cls: string; text: (due: string) => str
 }
 
 /** Una tarea: casilla, texto, cuándo vence y su nota (texto libre). `children` es el material de referencia de la tarea. */
-function TaskLine({ item, title, derived = false, highlight = false, children }: { item: TaskItem; title: React.ReactNode; /** Sin casilla: su estado sale de sus sub-items */ derived?: boolean; /** Falta un dato y nadie reconoció que así está bien */ highlight?: boolean; children?: React.ReactNode }) {
+function TaskLine({ item, title, derived = false, highlight = false, flags, uniform = false, children }: { item: TaskItem; title: React.ReactNode; /** Sin casilla: su estado sale de sus sub-items */ derived?: boolean; /** Falta un dato y nadie reconoció que así está bien */ highlight?: boolean; /** Marcas de datos que faltan, en la misma línea para que todas las filas midan lo mismo */ flags?: React.ReactNode; /** Todas las filas de la lista miden lo mismo: el título va en su propia línea (en el teléfono, dos con el alto reservado) */ uniform?: boolean; children?: React.ReactNode }) {
   const setTask = useStore((s) => s.setTask)
   const [writing, setWriting] = useState(false)
   const { key, state, status, due } = item
@@ -30,11 +31,12 @@ function TaskLine({ item, title, derived = false, highlight = false, children }:
         {derived ? (
           <span className={`min-w-0 flex-1 ${state.done ? 'text-base-content/50 line-through' : ''}`}>{title}</span>
         ) : (
-          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+          <label className={`flex min-w-0 cursor-pointer items-center gap-2 ${uniform ? 'basis-full sm:basis-0 sm:flex-1' : 'flex-1'}`}>
             <input type="checkbox" className="checkbox checkbox-primary checkbox-sm" checked={state.done} onChange={(e) => setTask(key, { done: e.target.checked })} />
-            <span className={`min-w-0 ${state.done ? 'text-base-content/50 line-through' : ''}`}>{title}</span>
+            <span className={`min-w-0 ${uniform ? 'line-clamp-2 min-h-[2lh] sm:line-clamp-1 sm:min-h-0' : ''} ${state.done ? 'text-base-content/50 line-through' : ''}`}>{title}</span>
           </label>
         )}
+        {flags}
         <span className={`badge badge-sm h-auto whitespace-normal py-0.5 text-left ${badge.cls}`}>{badge.text(due)}</span>
         <button className="btn btn-ghost btn-xs btn-square" title="Nota" aria-label={`Nota de ${item.def.label}`} aria-expanded={writing || !!state.note} onClick={() => setWriting(true)}>
           <Icon name="pencil" />
@@ -101,27 +103,32 @@ function Diopters({ checks, onOpen }: { checks: LensCheck[]; onOpen: (key: strin
   )
 }
 
+const MISSING = {
+  phone: { badge: 'Sin teléfono', ok: 'Sin teléfono, está bien', title: 'Ver la cirugía y cargar el teléfono' },
+  name: { badge: 'Sin nombre', ok: 'Sin nombre, está bien', title: 'Ver la cirugía y cargar el nombre' },
+} as const
+
 /**
- * Debajo de "llamar al paciente" cuando la cirugía no tiene teléfono: el check reconoce que así está bien,
- * tocar el resto abre la cirugía para mirarla entera y cargarlo.
+ * Marca en la línea de "llamar al paciente" cuando a la cirugía le falta el teléfono o el nombre: el check reconoce que
+ * así está bien, tocar la marca abre la cirugía para mirarla entera y cargarlo.
  */
-function NoPhone({ check, onOpen }: { check: PhoneCheck; onOpen: (key: string) => void }) {
+function Missing({ field, check, onOpen }: { field: 'phone' | 'name'; check: { key: string; row: Row; state: TaskState }; onOpen: (key: string) => void }) {
   const setTask = useStore((s) => s.setTask)
   const { key, row, state } = check
+  const text = MISSING[field]
   return (
-    <div className="flex items-center gap-2 text-sm">
+    <span className="inline-flex items-center gap-1">
       <input
         type="checkbox"
         className="checkbox checkbox-primary checkbox-xs"
-        aria-label={`Sin teléfono de ${row.name || 'esta cirugía'}: así está bien`}
+        aria-label={`${text.badge} de ${row.name || 'esta cirugía'}: así está bien`}
         checked={state.done}
         onChange={(e) => setTask(key, { done: e.target.checked })}
       />
-      <button className="flex min-w-0 flex-1 items-center gap-2 rounded py-0.5 text-left hover:bg-base-200/70" title="Ver la cirugía y cargar el teléfono" onClick={() => onOpen(row.key)}>
-        <span className={`badge badge-sm ${state.done ? 'badge-ghost' : 'badge-warning'}`}>{state.done ? 'Sin teléfono, está bien' : 'Sin teléfono'}</span>
-        <span className="text-base-content/60">Ver la cirugía y cargarlo</span>
+      <button className={`badge badge-sm ${state.done ? 'badge-ghost' : 'badge-warning'}`} title={text.title} onClick={() => onOpen(row.key)}>
+        {state.done ? text.ok : text.badge}
       </button>
-    </div>
+    </span>
   )
 }
 
@@ -144,10 +151,12 @@ export default function TasksView({ monday, setMonday }: { monday: string; setMo
   // la tarea de lentes depende de las revisiones de cada cirugía
   const weekly = weekTasks(monday, tasks, now).map((i) => (i.def.id === 'lentes' ? lensTask(i, checks, now) : i))
   const phones = phoneChecks(rows, tasks)
+  const names = nameChecks(rows, tasks)
   const noPhone = phones.filter((p) => !p.hasPhone)
-  const phoneOf = (key: string) => phones.find((p) => p.row.key === key)
-  // la casilla y la fila abiertas, de dioptrías o de teléfono
-  const open = checking && (checking.field === 'diopters' ? checks : phones).find((c) => c.row.key === checking.key)
+  const noName = names.filter((n) => !n.hasName)
+  const checksOf = { diopters: checks, phone: phones, name: names }
+  // la casilla y la fila abiertas, de dioptrías, teléfono o nombre
+  const open = checking && checksOf[checking.field].find((c) => c.row.key === checking.key)
   const sourcingRow = rows.find((r) => r.key === sourcing) ?? excluded.find((x) => x.row.key === sourcing)?.row
   const bySurgery = surgeryTasks(rows, tasks, now)
   const days = [...new Set(bySurgery.map((t) => t.row.date))]
@@ -187,6 +196,11 @@ export default function TasksView({ monday, setMonday }: { monday: string; setMo
               {noPhone.filter((p) => !p.state.done).length} de {noPhone.length} cirugías sin teléfono por mirar
             </p>
           )}
+          {noName.length > 0 && (
+            <p className="text-sm text-base-content/70">
+              {noName.filter((n) => !n.state.done).length} de {noName.length} cirugías sin nombre por mirar
+            </p>
+          )}
           {!days.length && <p className="py-4 text-center text-base-content/60">No hay cirugías esta semana.</p>}
           {days.map((date) => (
             <div key={date} className="flex flex-col">
@@ -197,15 +211,23 @@ export default function TasksView({ monday, setMonday }: { monday: string; setMo
                 {bySurgery
                   .filter((t) => t.row.date === date)
                   .map((item) => {
-                    const phone = phoneOf(item.row.key)
+                    const phone = phones.find((p) => p.row.key === item.row.key)
+                    const name = names.find((n) => n.row.key === item.row.key)
                     return (
                       <TaskLine
                         key={item.key}
                         item={item}
-                        highlight={!!phone && !phone.hasPhone && !phone.state.done}
+                        uniform
+                        flags={
+                          <>
+                            {name && !name.hasName && <Missing field="name" check={name} onOpen={(key) => setChecking({ field: 'name', key })} />}
+                            {phone && !phone.hasPhone && <Missing field="phone" check={phone} onOpen={(key) => setChecking({ field: 'phone', key })} />}
+                          </>
+                        }
+                        highlight={(!!phone && !phone.hasPhone && !phone.state.done) || (!!name && !name.hasName && !name.state.done)}
                         title={
                           <>
-                            {item.def.label}: <span className="font-semibold">{item.row.name || 'sin nombre'}</span>
+                            {item.def.label}: <span className="font-semibold">{name?.hasName ? item.row.name : 'sin nombre'}</span>
                             {phone?.hasPhone && (
                               <span className="ml-1.5 inline-flex items-center gap-1 text-sm text-base-content/70">
                                 · {item.row.phone}
@@ -214,8 +236,7 @@ export default function TasksView({ monday, setMonday }: { monday: string; setMo
                           </>
                         }
                       >
-                        {phone && !phone.hasPhone && <NoPhone check={phone} onOpen={(key) => setChecking({ field: 'phone', key })} />}
-                      </TaskLine>
+</TaskLine>
                     )
                   })}
               </ul>

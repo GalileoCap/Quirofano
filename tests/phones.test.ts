@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { NO_TASK, lensChecks, phoneChecks, surgeryTasks, weekTasks, type TaskState } from '../src/tasks.ts'
+import { NO_TASK, lensChecks, nameChecks, phoneChecks, surgeryTasks, weekTasks, type TaskState } from '../src/tasks.ts'
 import { useStore } from '../src/store.ts'
 import { FIELDS, type Fields, type Row, type Source } from '../src/types.ts'
 
@@ -28,6 +28,8 @@ const mk = (date: string, hc: string, source: Source = 'both'): Row => ({
 })
 
 const withPhone = (date: string, hc: string, phone: string): Row => ({ ...mk(date, hc), phone })
+
+const withName = (date: string, hc: string, name: string): Row => ({ ...mk(date, hc), name })
 
 const MONDAY = '2026-10-12'
 const NEXT_MONDAY = '2026-10-19'
@@ -93,4 +95,50 @@ test('tildar el aviso de teléfono con setTask no toca el "llamar" ni los lentes
   useStore.getState().setTask(call.key, { done: true, note: 'llamé' })
   assert.deepEqual(surgeryTasks([row], useStore.getState().tasks, '2026-10-12')[0]!.state, { done: true, note: 'llamé' })
   assert.deepEqual(phoneChecks([row], useStore.getState().tasks)[0]!.state, NO_TASK)
+})
+
+test('hasName es verdadero con cualquier contenido real del paciente y falso con vacío, espacios o solo marcas de "nada"', () => {
+  const sin = ['', '   ', '.', '-', '--', ' . ']
+  const con = ['PEREZ JUAN', 'Perez, Juan', 'PEREZ J. (hijo)', 'RAMIREZ ANA MARIA']
+  const rows = [...sin, ...con].map((n, i) => withName('2026-10-14', `${i + 1}/00`, n))
+  assert.deepEqual(
+    nameChecks(rows, {}).map((c) => c.hasName),
+    [...sin.map(() => false), ...con.map(() => true)],
+  )
+})
+
+test('la clave de nombre empieza con "nombre|", es estable, distinta por cirugía (también con la misma HC en dos fechas) y no choca con ninguna otra tarea', () => {
+  const rows = [mk('2026-10-14', '1/00'), mk('2026-10-16', '1/00'), mk('2026-10-14', '2/00')]
+  const nombre = keys(nameChecks(rows, {}))
+  assert.ok(nombre.every((k) => k.startsWith('nombre|')))
+  assert.equal(new Set(nombre).size, 3)
+  assert.deepEqual(keys(nameChecks(rows, { 'x|1': { done: true, note: '' } })), nombre)
+
+  const otras = [
+    ...keys(phoneChecks(rows, {})),
+    ...keys(lensChecks(rows, {})),
+    ...keys(surgeryTasks(rows, {}, '2026-10-12')),
+    ...keys(weekTasks(MONDAY, {}, '2026-10-12')),
+    ...keys(weekTasks(NEXT_MONDAY, {}, '2026-10-12')),
+  ]
+  const todas = [...nombre, ...otras]
+  assert.equal(new Set(todas).size, todas.length)
+})
+
+test('tildar el nombre con setTask no toca el teléfono, los lentes ni el "llamar" de la misma cirugía, y tildar el teléfono no toca el nombre', () => {
+  reset()
+  const row = withPhone('2026-10-14', '1/00', '11 5555-0101')
+  const name = nameChecks([row], useStore.getState().tasks)[0]!
+  const phone = phoneChecks([row], useStore.getState().tasks)[0]!
+
+  useStore.getState().setTask(name.key, { done: true })
+  assert.deepEqual(nameChecks([row], useStore.getState().tasks)[0]!.state, { done: true, note: '' })
+  assert.deepEqual(phoneChecks([row], useStore.getState().tasks)[0]!.state, NO_TASK)
+  assert.deepEqual(lensChecks([row], useStore.getState().tasks)[0]!.state, NO_TASK)
+  assert.deepEqual(surgeryTasks([row], useStore.getState().tasks, '2026-10-12')[0]!.state, NO_TASK)
+
+  reset()
+  useStore.getState().setTask(phone.key, { done: true, note: 'confirmado' })
+  assert.deepEqual(phoneChecks([row], useStore.getState().tasks)[0]!.state, { done: true, note: 'confirmado' })
+  assert.deepEqual(nameChecks([row], useStore.getState().tasks)[0]!.state, NO_TASK)
 })

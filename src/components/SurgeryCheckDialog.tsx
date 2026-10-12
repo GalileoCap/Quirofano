@@ -9,10 +9,11 @@ import { originLabel } from './RowParts.tsx'
 /** Lo que tiene la cirugía, por si el dato que falta está en las notas o en otro lado. */
 const CONTEXT: Field[] = ['surgery', 'eye', 'surgeon', 'assistant', 'duration', 'anesthesia', 'contact', 'phone', 'notes', 'extra']
 
-/** El dato que se revisa desde cada lista de la pestaña Tareas: su campo, el texto vacío y lo que dice la casilla. */
+/** El dato que se revisa desde la pestaña Tareas: su campo, el texto vacío y lo que dice la casilla. */
 export const CHECKS = {
   diopters: { placeholder: 'Sin dioptrías cargadas', label: (has: boolean) => (has ? 'Revisé el lente' : 'Revisé el lente: así está bien sin dioptrías') },
   phone: { placeholder: 'Sin teléfono cargado', label: (has: boolean) => (has ? 'Teléfono revisado' : 'Así está bien sin teléfono') },
+  name: { placeholder: 'Sin nombre cargado', label: (has: boolean) => (has ? 'Nombre revisado' : 'Así está bien sin nombre') },
 } as const
 
 export type CheckField = keyof typeof CHECKS
@@ -63,7 +64,7 @@ export default function SurgeryCheckDialog({
           {/* texto libre, como todos los campos (para poder anotar) */}
           <input className="input w-full font-normal" value={row[field]} placeholder={placeholder} onChange={(e) => setEdit(row, field, e.target.value)} />
         </label>
-        {/* con el teléfono cargado no hay nada que reconocer; con las dioptrías la casilla es la revisión del lente */}
+        {/* con el teléfono o el nombre cargado no hay nada que reconocer; con las dioptrías la casilla es la revisión del lente */}
         {(field === 'diopters' || !has) && (
           <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm">
             <input type="checkbox" className="checkbox checkbox-primary checkbox-sm" checked={checked} onChange={(e) => onCheck(e.target.checked)} />

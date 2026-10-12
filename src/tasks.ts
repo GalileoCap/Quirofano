@@ -78,6 +78,16 @@ export function phoneChecks(rows: Row[], tasks: Record<string, TaskState>): Phon
   })
 }
 
+/** Igual para el nombre del paciente: sin nombre, tildar quiere decir "así está bien". */
+export type NameCheck = { key: string; row: Row; hasName: boolean; state: TaskState }
+
+export function nameChecks(rows: Row[], tasks: Record<string, TaskState>): NameCheck[] {
+  return rows.map((row) => {
+    const key = `nombre|${row.key}`
+    return { key, row, hasName: !!clean(row.name), state: tasks[key] ?? NO_TASK }
+  })
+}
+
 /**
  * La tarea de la semana "Revisar que haya suficientes lentes" no se tilda: depende de sus revisiones por cirugía y
  * está hecha cuando todas lo están (sin cirugías, no queda nada por revisar). Lo que se guardó como hecho en ella no cuenta.
