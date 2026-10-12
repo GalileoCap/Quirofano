@@ -33,6 +33,15 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm test` y mirarlo en el 
 - **Horarios** (`src/checklist.ts`): una cirugía atrás de otra desde la hora de inicio según la duración (60 min si falta); lo escrito a mano se respeta.
 - **Exportación**: mismo formato que la planilla "Checklist" (21 columnas, días del último al primero, encabezado `PREQUI`/`HC` solo en el primer día).
 
+## Volver a cargar la agenda/el calendar durante la semana
+
+Flujo: al empezar la semana se cargan agenda y calendar y se arma el checklist; se corrige a mano; más tarde se vuelven a cargar. Todo lo que **difiere** entre el checklist y las fuentes se muestra y se confirma (`src/review.ts`):
+
+- **Cirugías nuevas** en el calendar entran solas; las novedades de la última carga (nuevas, movidas de día, que ya no están, con otros datos) se listan en "Novedades" (`load.ts` compara el checklist de antes y de después en 9 semanas; solo si las dos cargas se armaron igual, con o sin calendar).
+- **Campos escritos a mano** (`edits`) llevan anotado en `bases` qué decían las fuentes la última vez que se confirmaron. Si lo escrito difiere de lo que dicen hoy las fuentes y no está confirmado (edición vieja sin base, o las fuentes cambiaron después), la fila muestra "Difiere de la agenda/el calendar" con *Dejar el mío* (confirma) o *Usar el de la agenda/calendar* (descarta lo escrito). Mientras tanto rige lo escrito: nunca se pisa nada sin confirmar. PREQUI, notas, quirófano, horario no cuentan (las fuentes no los traen).
+- **Filas con trabajo manual que desaparecen de las fuentes** (`snaps` guarda cómo eran): "Ya no están…" ofrece pasar lo escrito al día nuevo si se movió (mismo HC), dejarla a mano o sacarla. Las que no tenían nada escrito solo salen en Novedades.
+- Lo que no cambió conserva lo escrito sin avisos.
+
 ## Lo que no se puede automatizar
 
 El checklist que arma la residente a mano no sale ni del calendar ni de la agenda por fecha: tiene cirugías movidas, sumadas y bajadas por conversaciones que no quedaron escritas en ninguna de las dos (en la semana del 12/10, de 34 filas, 10 no estaban en el calendar y 5 del calendar no estaban en el checklist). Por eso el cruce propone y avisa, y la persona incluye/saca/edita; no hay que intentar "adivinar" más.

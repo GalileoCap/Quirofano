@@ -1,13 +1,51 @@
 import { parseAgenda } from './agenda.ts'
-import { addDaysTo, isoOf } from './dates.ts'
-import { parseIcs } from './ics.ts'
-import { useSources, type CalendarFile } from './store.ts'
+import { addDaysTo, isoOf, mondayOf } from './dates.ts'
+import { classifyEvents, parseIcs } from './ics.ts'
+import { mergeChecklist } from './merge.ts'
+import { diffRows } from './review.ts'
+import { useSources, useStore, type CalendarFile } from './store.ts'
+import type { Row } from './types.ts'
 import { unzipText } from './unzip.ts'
 
 /** Resultado para mostrarle al usuario: lo que se cargó o por qué no se pudo. */
 export type LoadResult = { ok: boolean; message: string }
 
 const stem = (name: string) => name.replace(/\.[^.]+$/, '')
+
+/** Las semanas que importan para comparar cargas: desde la pasada y las ocho siguientes. */
+const COMPARE_WEEKS = 9
+
+/** El checklist que armarían hoy la agenda y los calendarios cargados (null si no hay nada cargado). */
+function snapshot(): { rows: Row[]; withCalendar: boolean } | null {
+  const { agenda, calendars } = useSources.getState()
+  const rows = agenda ? parseAgenda(agenda.text) : []
+  const classified = calendars.map((c) => classifyEvents(c.events))
+  const events = classified.flatMap((c) => c.events)
+  const problems = classified.flatMap((c) => c.problems)
+  if (!rows.length && !events.length) return null
+  const first = addDaysTo(mondayOf(isoOf(new Date())), -7)
+  const weeks = Array.from({ length: COMPARE_WEEKS }, (_, i) => addDaysTo(first, i * 7))
+  return {
+    rows: weeks.flatMap((m) => mergeChecklist({ agenda: rows, events, problems, from: m, to: addDaysTo(m, 6) }).rows),
+    withCalendar: events.length > 0,
+  }
+}
+
+/** Cambia las fuentes y deja anotado qué cambió en el checklist (cirugías nuevas, movidas, canceladas o con otros datos). */
+function applyAndCompare(apply: () => void) {
+  const before = snapshot()
+  apply()
+  const after = snapshot()
+  const { edits, included, news, setNews } = useStore.getState()
+  // armado solo con la agenda y armado con el calendar no se pueden comparar: serían todas "novedades"
+  if (!before || !after || before.withCalendar !== after.withCalendar) return
+  const items = diffRows(before.rows, after.rows, edits, included)
+  // agenda y calendar suelen subirse seguidos: las novedades de las dos cargas se juntan
+  const recent = news && Date.now() - Date.parse(news.at) < 10 * 60_000 ? news.items : []
+  const seen = new Set(recent.map((n) => `${n.kind}|${n.key}`))
+  const all = [...recent, ...items.filter((n) => !seen.has(`${n.kind}|${n.key}`))]
+  setNews(all.length ? { at: new Date().toISOString(), items: all } : null)
+}
 
 export async function loadAgenda(files: File[]): Promise<LoadResult> {
   const file = files[0]
@@ -16,7 +54,7 @@ export async function loadAgenda(files: File[]): Promise<LoadResult> {
   const rows = parseAgenda(text)
   if (!rows.length || !/CIRUGIA/i.test(text.slice(0, 2000)))
     return { ok: false, message: 'Ese archivo no parece la agenda quirúrgica (.csv con las columnas del formulario).' }
-  useSources.getState().setAgenda(file.name, text)
+  applyAndCompare(() => useSources.getState().setAgenda(file.name, text))
   return { ok: true, message: `Agenda cargada: ${rows.length} cirugías.` }
 }
 
@@ -52,6 +90,6 @@ export async function loadCalendars(files: File[]): Promise<LoadResult> {
     }
   }
   if (!found.length) return { ok: false, message: 'No encontré ningún calendario (.ics) en lo que elegiste.' }
-  useSources.getState().addCalendars(found)
+  applyAndCompare(() => useSources.getState().addCalendars(found))
   return { ok: true, message: `Calendarios cargados: ${found.map((f) => f.name).join(', ')}.` }
 }

@@ -68,7 +68,7 @@ function fromAgenda(a: AgendaRow, date: string, key: string, source: Row['source
 }
 
 /** HC sin espacios ni separadores raros: '52017 / 00' y '52017:00' son la misma. */
-const normHc = (s: string) => s.toUpperCase().replace(/\s+/g, '').replace(/[:-]/g, '/')
+export const normHc = (s: string) => s.toUpperCase().replace(/\s+/g, '').replace(/[:-]/g, '/')
 
 const fmtDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 

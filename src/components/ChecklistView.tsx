@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { sheetCsv, sheetTsv } from '../checklist.ts'
 import { addDaysTo, dayOfWeek, isoOf, mondayOf } from '../dates.ts'
 import { DAY_LABELS, shortDate, weekLabel } from '../format.ts'
-import { useChecklist } from '../hooks.ts'
+import { useChecklist, useOrphans } from '../hooks.ts'
 import { useSources, useStore } from '../store.ts'
 import type { Excluded, Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
@@ -10,6 +10,7 @@ import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
 import RowDialog from './RowDialog.tsx'
+import { NewsCard, Orphans } from './Review.tsx'
 
 /** La semana que se arma por defecto: la actual, y desde el sábado la que viene. */
 function defaultMonday() {
@@ -30,7 +31,8 @@ export default function ChecklistView() {
   const [toast, setToast] = useState<string | null>(null)
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
-  const { moveRow, setIncluded, addManualRow, removeManualRow } = useStore()
+  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, useSource, news, setNews } = useStore()
+  const orphans = useOrphans()
 
   const days = useMemo(
     () =>
@@ -39,6 +41,7 @@ export default function ChecklistView() {
         .filter((d) => d.rows.length),
     [monday, rows],
   )
+  const conflicted = rows.filter((r) => r.conflicts)
   const editingRow = rows.find((r) => r.key === editing)
 
   const say = (msg: string) => {
@@ -63,7 +66,7 @@ export default function ChecklistView() {
     URL.revokeObjectURL(a.href)
   }
 
-  const remove = (r: Row) => (r.source === 'manual' ? removeManualRow(r.key) : setIncluded(r.key, false))
+  const remove = (r: Row) => (r.source === 'manual' ? removeManualRow(r.key) : setIncluded(r, false))
 
   if (!hasSources)
     return (
@@ -110,6 +113,24 @@ export default function ChecklistView() {
         </div>
       )}
 
+      {conflicted.length > 0 && (
+        <div role="alert" className="alert alert-warning alert-soft items-center gap-2 text-sm text-base-content">
+          <Icon name="warning" className="size-4" />
+          <span className="flex-1">
+            {conflicted.length} {conflicted.length === 1 ? 'cirugía difiere' : 'cirugías difieren'} de la agenda/el calendar: revisalas y confirmá cada una.
+          </span>
+          <button
+            className="btn btn-xs"
+            onClick={() => confirm('Se queda lo que escribiste en todas. ¿Seguir?') && conflicted.forEach((r) => keepMine(r.key, r.conflicts!))}
+          >
+            Dejar todo lo mío
+          </button>
+        </div>
+      )}
+
+      {orphans.length > 0 && <Orphans orphans={orphans} />}
+      {news && news.items.length > 0 && <NewsCard news={news} onClose={() => setNews(null)} />}
+
       {!days.length && (
         <p className="py-8 text-center text-base-content/60">
           No hay cirugías esta semana{excluded.length ? ' (hay algunas sin incluir más abajo)' : ''}.
@@ -139,6 +160,8 @@ export default function ChecklistView() {
                   onMove={(dir) => moveRow(date, keys, r.key, dir)}
                   onEdit={() => setEditing(r.key)}
                   onRemove={() => remove(r)}
+                  onKeepMine={() => keepMine(r.key, r.conflicts ?? [])}
+                  onUseSource={() => useSource(r.key, r.conflicts ?? [])}
                 />
               ))}
             </ul>
@@ -151,7 +174,7 @@ export default function ChecklistView() {
           <div className="card-body gap-2 p-3">
             <div className="flex items-center gap-2">
               <h3 className="card-title flex-1 text-base">Sin incluir ({excluded.length})</h3>
-              <button className="btn btn-xs" onClick={() => excluded.forEach((x) => x.reason !== 'suspended' && setIncluded(x.row.key, true))}>
+              <button className="btn btn-xs" onClick={() => excluded.forEach((x) => x.reason !== 'suspended' && setIncluded(x.row, true))}>
                 Incluir todas
               </button>
             </div>
@@ -166,7 +189,7 @@ export default function ChecklistView() {
                     <span className="font-semibold">{row.name}</span> · {row.surgery}
                   </span>
                   <span className="badge badge-sm badge-ghost hidden whitespace-nowrap sm:inline-flex">{REASON[reason]}</span>
-                  <button className="btn btn-xs" onClick={() => setIncluded(row.key, true)}>
+                  <button className="btn btn-xs" onClick={() => setIncluded(row, true)}>
                     Incluir
                   </button>
                 </li>

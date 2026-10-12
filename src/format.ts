@@ -1,7 +1,30 @@
 import { addDaysTo } from './dates.ts'
+import type { Field } from './types.ts'
 
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 export const DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
+export const FIELD_LABELS: Record<Field, string> = {
+  name: 'Paciente',
+  hc: 'HC',
+  duration: 'Duración',
+  time: 'Horario',
+  surgery: 'Cirugía',
+  surgeon: 'Cirujano',
+  assistant: 'Ayudante',
+  eye: 'Ojo',
+  contact: 'Contacto',
+  phone: 'Teléfono',
+  diopters: 'Dioptrías',
+  anesthesia: 'Anestesia',
+  notes: 'Observaciones',
+  dni: 'DNI',
+  prequi: 'Prequi',
+  hcCheck: 'HC (check)',
+  extra: 'Notas',
+  quirofano: 'Quirófano',
+  quiroDia: 'Quiró día',
+}
 
 /** '2026-10-13' → '13/10'. */
 export const shortDate = (iso: string) => `${iso.slice(8, 10).replace(/^0/, '')}/${iso.slice(5, 7).replace(/^0/, '')}`

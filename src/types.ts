@@ -75,8 +75,19 @@ export const FIELDS = [
 ] as const
 export type Field = (typeof FIELDS)[number]
 
+export type Fields = Record<Field, string>
+
+/**
+ * Un campo escrito a mano que difiere de la agenda/el calendar y todavía no se confirmó.
+ * `was` es lo que decían las fuentes la última vez que se miró (undefined = edición vieja que nunca se confirmó).
+ */
+export type Conflict = { field: Field; mine: string; was?: string; now: string }
+
+/** Columnas que solo existen en el checklist (las fuentes no las traen): escribirlas no es una diferencia. */
+export const MANUAL_FIELDS: readonly Field[] = ['time', 'prequi', 'hcCheck', 'extra', 'quirofano', 'quiroDia']
+
 /** Una fila del checklist: datos de la agenda + columnas que se completan a mano. */
-export type Row = Record<Field, string> & {
+export type Row = Fields & {
   /** Identifica la fila entre cambios de agenda: fecha + paciente (+ cirugía si hay dos el mismo día) */
   key: string
   date: string
@@ -85,7 +96,14 @@ export type Row = Record<Field, string> & {
   warning?: string
   /** Número de fila de la agenda de donde salió */
   line?: number
+  /** Lo que salió del cruce, antes de poner encima lo escrito a mano */
+  src?: Fields
+  /** Campos editados a mano que la agenda/el calendar cambiaron después: hay que confirmar */
+  conflicts?: Conflict[]
 }
+
+/** Cómo era una fila cuando se la tocó por primera vez (para reconocerla si después desaparece de las fuentes). */
+export type Snap = Fields & { date: string }
 
 /** Una cirugía que no entra al checklist: suspendida, que no está en el calendar, o que se sacó a mano. */
 export type Excluded = { row: Row; reason: 'suspended' | 'not-in-calendar' | 'removed' }

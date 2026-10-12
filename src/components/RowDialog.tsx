@@ -38,7 +38,7 @@ export default function RowDialog({ row, onClose }: { row: Row; onClose: () => v
                 className="input input-sm w-full font-normal"
                 value={field === 'time' ? manualTime : row[field]}
                 placeholder={field === 'time' ? row.time : undefined}
-                onChange={(e) => setEdit(row.key, field, e.target.value)}
+                onChange={(e) => setEdit(row, field, e.target.value)}
               />
             </label>
           ))}

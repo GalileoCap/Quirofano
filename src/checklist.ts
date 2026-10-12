@@ -1,5 +1,6 @@
 import { toCsv, toTsv } from './csv.ts'
 import { dayOfWeek } from './dates.ts'
+import { fieldsOf, resolveEdit } from './review.ts'
 import type { Field, Row } from './types.ts'
 
 /** Lo que el usuario cambió a mano, por fila (clave de `Row.key`) y por campo. */
@@ -8,9 +9,18 @@ export type Edits = Record<string, Partial<Record<Field, string>>>
 export const DAY_NAMES = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 export const dayName = (date: string) => DAY_NAMES[dayOfWeek(date)]
 
-/** Pone las ediciones a mano encima de lo que salió del cruce. */
-export const applyEdits = (rows: Row[], edits: Edits): Row[] =>
-  rows.map((r) => (edits[r.key] ? { ...r, ...edits[r.key] } : r))
+/**
+ * Pone las ediciones a mano encima de lo que salió del cruce, y deja en cada fila lo que salió del cruce (`src`) y
+ * los campos escritos a mano que difieren de las fuentes sin confirmar (`conflicts`). `bases` es lo que decían las
+ * fuentes cuando se confirmó cada campo.
+ */
+export const applyEdits = (rows: Row[], edits: Edits, bases: Edits = {}): Row[] =>
+  rows.map((r) => {
+    const src = fieldsOf(r)
+    if (!edits[r.key]) return { ...r, src }
+    const { edit, conflicts } = resolveEdit(src, edits[r.key], bases[r.key])
+    return { ...r, ...edit, src, ...(conflicts.length ? { conflicts } : {}) }
+  })
 
 /** Ordena cada día según el orden elegido; lo que no está en la lista (filas nuevas) queda al final, en su orden original. */
 export function sortRows(rows: Row[], order: Record<string, string[]>): Row[] {

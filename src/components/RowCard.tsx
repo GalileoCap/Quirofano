@@ -1,3 +1,4 @@
+import { FIELD_LABELS } from '../format.ts'
 import { useStore } from '../store.ts'
 import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
@@ -8,7 +9,7 @@ function Check({ row, field, label, className = '' }: { row: Row; field: Field; 
   return (
     <label className={`flex min-w-0 flex-col gap-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-base-content/60 ${className}`}>
       {label}
-      <input className="cell-input font-normal normal-case tracking-normal text-base-content" value={row[field]} onChange={(e) => setEdit(row.key, field, e.target.value)} />
+      <input className="cell-input font-normal normal-case tracking-normal text-base-content" value={row[field]} onChange={(e) => setEdit(row, field, e.target.value)} />
     </label>
   )
 }
@@ -28,6 +29,8 @@ export default function RowCard({
   onMove,
   onEdit,
   onRemove,
+  onKeepMine,
+  onUseSource,
 }: {
   row: Row
   first: boolean
@@ -35,6 +38,8 @@ export default function RowCard({
   onMove: (dir: -1 | 1) => void
   onEdit: () => void
   onRemove: () => void
+  onKeepMine: () => void
+  onUseSource: () => void
 }) {
   return (
     <li className="card card-border bg-base-100">
@@ -86,6 +91,27 @@ export default function RowCard({
             </button>
           </div>
         </div>
+        {row.conflicts && (
+          <div role="alert" className="alert alert-warning alert-soft flex-col items-start gap-1.5 p-2 text-xs text-base-content">
+            <p className="font-semibold">Difiere de la agenda/el calendar:</p>
+            <ul className="flex flex-col gap-0.5">
+              {row.conflicts.map((c) => (
+                <li key={c.field}>
+                  <span className="font-semibold">{FIELD_LABELS[c.field]}</span>: en el checklist <q>{c.mine || 'vacío'}</q>, ahora dice <q>{c.now || 'vacío'}</q>
+                  {c.was !== undefined && c.was !== c.now && <span className="text-base-content/60"> (antes decía <q>{c.was || 'vacío'}</q>)</span>}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2">
+              <button className="btn btn-xs" onClick={onKeepMine}>
+                Dejar el mío
+              </button>
+              <button className="btn btn-xs btn-primary" onClick={onUseSource}>
+                Usar el de la agenda/calendar
+              </button>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-[1fr_1fr] gap-2 sm:grid-cols-[1fr_1fr_2fr]">
           <Check row={row} field="prequi" label="Prequi" />
           <Check row={row} field="hcCheck" label="HC" />
