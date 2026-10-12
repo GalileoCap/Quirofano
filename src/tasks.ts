@@ -67,6 +67,17 @@ export function lensChecks(rows: Row[], tasks: Record<string, TaskState>): LensC
   })
 }
 
+/** Si una cirugía no tiene teléfono, tildar quiere decir "así está bien". Es aparte de "llamar al paciente" (la llamada hecha). */
+export type PhoneCheck = { key: string; row: Row; hasPhone: boolean; state: TaskState }
+
+/** Una por cirugía, con su prefijo propio para no chocar con las demás claves. */
+export function phoneChecks(rows: Row[], tasks: Record<string, TaskState>): PhoneCheck[] {
+  return rows.map((row) => {
+    const key = `telefono|${row.key}`
+    return { key, row, hasPhone: !!clean(row.phone), state: tasks[key] ?? NO_TASK }
+  })
+}
+
 /**
  * La tarea de la semana "Revisar que haya suficientes lentes" no se tilda: depende de sus revisiones por cirugía y
  * está hecha cuando todas lo están (sin cirugías, no queda nada por revisar). Lo que se guardó como hecho en ella no cuenta.
