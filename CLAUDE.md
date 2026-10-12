@@ -50,6 +50,17 @@ El respaldo de Datos (`writeBackup`/`readBackup`) lleva `version` y pasa por las
 
 Antes de leer lo guardado con otra versión (más vieja, más nueva o ilegible), `quiro-v1` se copia tal cual a `quiro-v1.antes-vN` (si esa copia ya existe no se pisa), para que una migración que sale mal o una pestaña con la app vieja no destruya lo escrito. La agenda y los calendarios no se copian: se vuelven a cargar. Las copias no se borran solas.
 
+## Deploy y versiones
+
+El repo es `git@github.com:GalileoCap/Quirofano.git` (remote `origin`, rama `main`). Solo se deploya cuando el dueño lo pide, y en cada deploy van juntos, en este orden:
+
+1. Bumpear la versión de `package.json` (semver: `0.1.0` es la primera; la que está puesta ya es la del primer deploy, no se vuelve a subir) y, si cambió la forma de lo guardado desde el último deploy, la migración de ese deploy (ver arriba).
+2. Commit, con `npm test`, `npm run build` y `session-tells` en verde.
+3. Tag `vX.Y.Z` sobre ese commit.
+4. Push de `main` y del tag.
+
+Entre deploys se commitea pero no se pushea. Como la app guarda todo en el navegador de cada persona, el "backup antes de deployar" es el JSON de Datos (Exportar JSON): se avisa que lo baje antes de abrir la versión nueva.
+
 ## Cómo se arma el checklist
 
 ### Agenda
