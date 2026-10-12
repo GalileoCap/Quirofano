@@ -1,3 +1,4 @@
+import { FIELD_LABELS } from './format.ts'
 import { SOURCE_FIELDS, agendaValue, disagree, eventValue } from './origin.ts'
 import type { Excluded, Field, Row } from './types.ts'
 
@@ -74,4 +75,30 @@ export function inFilter(f: Flags, filter: Filter): boolean {
     case 'pending':
       return !f.excluded && f.pending.length > 0
   }
+}
+
+export const EXCLUDED_LABELS: Record<Excluded['reason'], string> = {
+  suspended: 'Suspendida',
+  'not-in-calendar': 'No está en el calendar',
+  removed: 'Sacada a mano',
+}
+
+/** Una marca de la fila, con el texto que se muestra en el Resumen y en el Calendario. */
+export type Note = { kind: 'excluded' | 'confirm' | 'sources' | 'solo' | 'manual' | 'edited' | 'missing'; text: string }
+
+const labels = (fields: (Field | 'date')[]) => fields.map((f) => (f === 'date' ? 'Fecha' : FIELD_LABELS[f])).join(', ')
+
+export function flagNotes(f: Flags): Note[] {
+  // lo por confirmar ya figura aparte: no se repite como editado
+  const edited = f.edited.filter((x) => !f.confirm.includes(x))
+  const notes: Note[] = []
+  if (f.excluded) notes.push({ kind: 'excluded', text: EXCLUDED_LABELS[f.excluded] })
+  if (f.confirm.length) notes.push({ kind: 'confirm', text: `Sin confirmar: ${labels(f.confirm)}` })
+  if (f.sources.length) notes.push({ kind: 'sources', text: `Agenda ≠ calendar: ${labels(f.sources)}` })
+  if (!f.excluded && f.single === 'calendar') notes.push({ kind: 'solo', text: 'Solo calendar' })
+  if (!f.excluded && f.single === 'agenda') notes.push({ kind: 'solo', text: 'Solo agenda' })
+  if (f.single === 'manual') notes.push({ kind: 'manual', text: 'A mano' })
+  if (edited.length) notes.push({ kind: 'edited', text: `Editado: ${labels(edited)}` })
+  if (!f.excluded && f.missing.length) notes.push({ kind: 'missing', text: `Falta: ${labels(f.missing)}` })
+  return notes
 }

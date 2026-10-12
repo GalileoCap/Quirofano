@@ -1,22 +1,24 @@
 import { useMemo, useState } from 'react'
 import { dayOfWeek } from '../dates.ts'
-import { DAY_LABELS, FIELD_LABELS, shortDate } from '../format.ts'
+import { DAY_LABELS, shortDate } from '../format.ts'
 import { weekDays } from '../merge.ts'
-import { FILTERS, FILTER_LABELS, REQUIRED_FIELDS, inFilter, rowFlags, type Filter, type Flags } from '../overview.ts'
+import { FILTERS, FILTER_LABELS, REQUIRED_FIELDS, flagNotes, inFilter, rowFlags, type Filter, type Flags, type Note } from '../overview.ts'
 import { useStore } from '../store.ts'
 import type { Excluded, Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
 
-const REASON: Record<Excluded['reason'], string> = {
-  suspended: 'Suspendida',
-  'not-in-calendar': 'No está en el calendar',
-  removed: 'Sacada a mano',
-}
-
 type Item = { row: Row; flags: Flags }
 
-const labels = (fields: (Field | 'date')[]) => fields.map((f) => (f === 'date' ? 'Fecha' : FIELD_LABELS[f])).join(', ')
+const BADGE: Record<Note['kind'], string> = {
+  excluded: 'badge-ghost',
+  confirm: 'badge-warning',
+  sources: 'badge-error badge-soft',
+  solo: 'badge-warning badge-soft',
+  manual: 'badge-info badge-soft',
+  edited: 'badge-info badge-soft',
+  missing: 'badge-ghost border-dashed border-error/50',
+}
 
 /** Cómo se marca un campo en la fila: por confirmar, fuentes que no coinciden, escrito a mano. */
 function mark(f: Field, flags: Flags) {
@@ -45,17 +47,13 @@ const Manual = ({ row, field, label }: { row: Row; field: Field; label: string }
 )
 
 function Chips({ flags, row }: { flags: Flags; row: Row }) {
-  const edited = flags.edited.filter((f) => !flags.confirm.includes(f))
   return (
     <span className="flex flex-wrap items-center gap-1">
-      {flags.excluded && <span className="badge badge-sm badge-ghost">{REASON[flags.excluded]}</span>}
-      {flags.confirm.length > 0 && <span className="badge badge-sm badge-warning">Sin confirmar: {labels(flags.confirm)}</span>}
-      {flags.sources.length > 0 && <span className="badge badge-sm badge-error badge-soft">Agenda ≠ calendar: {labels(flags.sources)}</span>}
-      {!flags.excluded && flags.single === 'calendar' && <span className="badge badge-sm badge-warning badge-soft">Solo calendar</span>}
-      {!flags.excluded && flags.single === 'agenda' && <span className="badge badge-sm badge-warning badge-soft">Solo agenda</span>}
-      {flags.single === 'manual' && <span className="badge badge-sm badge-info badge-soft">A mano</span>}
-      {edited.length > 0 && <span className="badge badge-sm badge-info badge-soft">Editado: {labels(edited)}</span>}
-      {!flags.excluded && flags.missing.length > 0 && <span className="badge badge-sm badge-ghost border-dashed border-error/50">Falta: {labels(flags.missing)}</span>}
+      {flagNotes(flags).map((n) => (
+        <span key={n.kind + n.text} className={`badge badge-sm ${BADGE[n.kind]}`}>
+          {n.text}
+        </span>
+      ))}
       {row.warning && <Icon name="warning" className="size-4 text-warning" aria-label={row.warning} />}
     </span>
   )

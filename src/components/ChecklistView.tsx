@@ -4,8 +4,10 @@ import { addDaysTo, dayOfWeek, isoOf, mondayOf } from '../dates.ts'
 import { DAY_LABELS, shortDate, weekLabel } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
 import { useSources, useStore } from '../store.ts'
-import type { Excluded, Row } from '../types.ts'
+import { EXCLUDED_LABELS } from '../overview.ts'
+import type { Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
+import CalendarView from './CalendarView.tsx'
 import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
@@ -21,18 +23,12 @@ function defaultMonday() {
   return mondayOf(dow === 6 ? addDaysTo(today, 2) : dow === 0 ? addDaysTo(today, 1) : today)
 }
 
-const REASON: Record<Excluded['reason'], string> = {
-  suspended: 'Suspendida',
-  'not-in-calendar': 'No está en el calendar',
-  removed: 'Sacada a mano',
-}
-
 export default function ChecklistView() {
   const [monday, setMonday] = useState(defaultMonday)
   const [editing, setEditing] = useState<string | null>(null)
   const [sourcing, setSourcing] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [mode, setMode] = useState<'resumen' | 'detalle'>('resumen')
+  const [mode, setMode] = useState<'resumen' | 'detalle' | 'calendario'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
   const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, useSource, news, setNews, ranges, setRange } = useStore()
@@ -99,13 +95,13 @@ export default function ChecklistView() {
             Hoy
           </button>
           <div role="group" aria-label="Vista" className="join w-full sm:w-auto">
-            {(['resumen', 'detalle'] as const).map((m) => (
-              <button key={m} className={`btn btn-sm join-item flex-1 sm:flex-none ${mode === m ? 'btn-primary' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
-                {m === 'resumen' ? 'Resumen' : 'Detalle'}
+            {(['resumen', 'detalle', 'calendario'] as const).map((m) => (
+              <button key={m} className={`btn btn-sm join-item flex-1 capitalize sm:flex-none ${mode === m ? 'btn-primary' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
+                {m}
               </button>
             ))}
           </div>
-          <div className="flex w-full items-center gap-2 text-sm" role="group" aria-label="Días que se arman">
+          <div className="flex w-full flex-wrap items-center gap-2 text-sm" role="group" aria-label="Días que se arman">
             <span className="text-base-content/60">Días</span>
             {(['from', 'to'] as const).map((bound) => (
               <label key={bound} className="flex items-center gap-1">
@@ -178,6 +174,10 @@ export default function ChecklistView() {
         <OverviewView monday={monday} rows={rows} excluded={excluded} onEdit={setEditing} onRemove={remove} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
       )}
 
+      {mode === 'calendario' && (
+        <CalendarView from={range.from} to={range.to} rows={rows} excluded={excluded} onEdit={setEditing} onSource={setSourcing} />
+      )}
+
       {mode === 'detalle' && !days.length && (
         <p className="py-8 text-center text-base-content/60">
           No hay cirugías esta semana{excluded.length ? ' (hay algunas sin incluir más abajo)' : ''}.
@@ -236,7 +236,7 @@ export default function ChecklistView() {
                   <span className="min-w-0 flex-1 truncate">
                     <span className="font-semibold">{row.name}</span> · {row.surgery}
                   </span>
-                  <span className="badge badge-sm badge-ghost hidden whitespace-nowrap sm:inline-flex">{REASON[reason]}</span>
+                  <span className="badge badge-sm badge-ghost hidden whitespace-nowrap sm:inline-flex">{EXCLUDED_LABELS[reason]}</span>
                   <button className="btn btn-ghost btn-xs btn-square" title="Ver el origen" aria-label="Ver el origen" onClick={() => setSourcing(row.key)}>
                     <Icon name="fileText" />
                   </button>

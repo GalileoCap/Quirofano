@@ -4,7 +4,7 @@ import { parseAgenda } from '../src/agenda.ts'
 import { applyEdits } from '../src/checklist.ts'
 import { classifyEvents, parseIcs } from '../src/ics.ts'
 import { mergeChecklist } from '../src/merge.ts'
-import { inFilter, rowFlags } from '../src/overview.ts'
+import { flagNotes, inFilter, rowFlags } from '../src/overview.ts'
 import type { Row } from '../src/types.ts'
 
 // Datos inventados: nunca poner pacientes reales en el repo
@@ -110,4 +110,14 @@ test('lo que quedó sin incluir cuenta como diferencia entre agenda y calendar, 
   const sacada = rowFlags(find(week().rows, 'PEREZ JUAN'), 'removed')
   assert.equal(inFilter(sacada, 'sources'), false)
   assert.equal(inFilter(sacada, 'edited'), true)
+})
+
+test('los textos de las marcas no repiten como editado lo que ya figura por confirmar, y lo faltante solo se avisa en filas incluidas', () => {
+  const { rows } = week()
+  const gomez = find(rows, 'GOMEZ ANA')
+  const [edited] = applyEdits(rows, { [gomez.key]: { eye: 'DERECHO', anesthesia: 'GENERAL' } }, { [gomez.key]: { anesthesia: gomez.anesthesia } }).filter((r) => r.name === 'GOMEZ ANA')
+  assert.deepEqual(flagNotes(rowFlags(edited)).map((n) => n.text), ['Sin confirmar: Ojo', 'Agenda ≠ calendar: Cirujano', 'Editado: Anestesia'])
+  const simon = find(rows, 'SIN AGENDA SIMON')
+  assert.deepEqual(flagNotes(rowFlags(simon)).map((n) => n.text), ['Solo calendar', 'Falta: HC, Ojo, Duración'])
+  assert.deepEqual(flagNotes(rowFlags(simon, 'not-in-calendar')).map((n) => n.text), ['No está en el calendar'])
 })

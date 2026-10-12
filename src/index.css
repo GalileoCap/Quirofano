@@ -74,6 +74,35 @@ body::before {
 .tabs-box { background: color-mix(in oklab, var(--color-primary) 10%, var(--color-base-100)); }
 .tabs-box .tab-active { color: var(--color-primary-content) !important; background: var(--color-primary) !important; }
 
+/* FullCalendar (vista Calendario): mismos retoques que en guardias */
+.fc {
+  --fc-border-color: var(--color-base-300);
+  --fc-today-bg-color: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  --fc-event-bg-color: color-mix(in oklab, var(--color-primary) 9%, var(--color-base-100));
+  --fc-event-border-color: color-mix(in oklab, var(--color-primary) 55%, var(--color-base-100));
+  --fc-event-text-color: var(--color-base-content);
+}
+.fc .fc-col-header-cell-cushion { color: color-mix(in oklab, var(--color-primary) 75%, var(--color-base-content)); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 4px; }
+.fc .fc-scrollgrid { border-radius: 0.9rem; overflow: hidden; }
+.fc .fc-daygrid-day-number { color: var(--color-base-content); }
+.fc .fc-day-today .fc-daygrid-day-number { background: var(--color-primary); color: var(--color-primary-content); border-radius: 9999px; margin: 3px; padding: 1px 7px; }
+.fc .fc-day-sat,
+.fc .fc-day-sun { background: color-mix(in oklab, var(--color-primary) 5%, transparent); }
+.cal-card { padding: 0.375rem; }
+@media (min-width: 640px) { .cal-card { padding: 0.75rem; } }
+
+/* Una cirugía: tarjeta que deja ver todo el nombre y la cirugía (no una píldora de una línea) */
+.fc .fc-event.q-event { cursor: pointer; white-space: normal; font-size: 0.78rem; line-height: 1.25; padding: 3px 6px; border-radius: 0.6rem; border-left-width: 4px; font-weight: 600; }
+.fc .fc-event.q-event .fc-event-main { color: inherit; }
+.fc .fc-event.q-event .q-event-body { overflow-wrap: anywhere; }
+.fc .fc-event.q-event:hover { background: color-mix(in oklab, var(--color-primary) 16%, var(--color-base-100)); }
+.fc .fc-daygrid-event-harness { margin-bottom: 3px; }
+.fc .fc-event.q-manual { --fc-event-border-color: var(--color-info); --fc-event-bg-color: color-mix(in oklab, var(--color-info) 14%, var(--color-base-100)); }
+.fc .fc-event.q-sources { --fc-event-border-color: var(--color-error); }
+.fc .fc-event.q-confirm { --fc-event-border-color: var(--color-warning); --fc-event-bg-color: color-mix(in oklab, var(--color-warning) 30%, var(--color-base-100)); outline: 2px solid var(--color-warning); outline-offset: 0; }
+.fc .fc-event.q-missing .q-event-body::after { content: ''; display: block; margin-top: 2px; border-top: 1px dashed color-mix(in oklab, var(--color-error) 60%, transparent); }
+.fc .fc-event.q-excluded { --fc-event-bg-color: transparent; border-style: dashed; border-width: 1px 1px 1px 4px; opacity: 0.6; }
+
 /* Teléfono: los inputs en 16px evitan que iOS haga zoom al enfocarlos */
 @media (max-width: 639px) {
   input, select, textarea { font-size: 16px; }
