@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { parseAgenda } from './agenda.ts'
-import { applyEdits, parseClock, sortRows, withTimes } from './checklist.ts'
+import { applyEdits, sortRows } from './checklist.ts'
 import { addDaysTo, isoOf, mondayOf } from './dates.ts'
 import { classifyEvents } from './ics.ts'
 import { mergeChecklist } from './merge.ts'
 import { findOrphans, type Orphan } from './review.ts'
 import { useSources, useStore } from './store.ts'
+import { suggestions } from './suggest.ts'
 import type { Excluded, Row } from './types.ts'
 
 export function useAgenda() {
@@ -28,6 +29,13 @@ export function useCalendarEvents() {
   }, [calendars])
 }
 
+/** Valores ya usados en la agenda y el calendar, para sugerir al escribir. */
+export function useSuggestions() {
+  const agenda = useAgenda()
+  const { events } = useCalendarEvents()
+  return useMemo(() => suggestions(agenda, events), [agenda, events])
+}
+
 export type Checklist = {
   rows: Row[]
   excluded: Excluded[]
@@ -40,7 +48,7 @@ export type Checklist = {
 export function useChecklist(monday: string): Checklist {
   const agenda = useAgenda()
   const { events, problems } = useCalendarEvents()
-  const { edits, bases, order, included, manualRows, dayStart } = useStore()
+  const { edits, bases, order, included, manualRows } = useStore()
   const sunday = addDaysTo(monday, 6)
 
   const merged = useMemo(
@@ -61,9 +69,9 @@ export function useChecklist(monday: string): Checklist {
       else excluded.push(x)
     }
     for (const r of manualRows) if (r.date >= monday && r.date <= sunday) kept.push(r)
-    const rows = withTimes(sortRows(applyEdits(kept, edits, bases), order), parseClock(dayStart) ?? 8 * 60)
+    const rows = sortRows(applyEdits(kept, edits, bases), order)
     return { rows, excluded, warnings: merged.warnings, hasAgenda: agenda.length > 0 }
-  }, [merged, edits, bases, order, included, manualRows, dayStart, monday, sunday, agenda.length])
+  }, [merged, edits, bases, order, included, manualRows, monday, sunday, agenda.length])
 }
 
 /**

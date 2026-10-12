@@ -21,8 +21,6 @@ export type UserData = {
   included: Record<string, boolean>
   /** Pacientes agregados a mano */
   manualRows: Row[]
-  /** Hora de la primera cirugía del día, 'HH:MM' */
-  dayStart: string
 }
 
 /** Qué cambió en la última carga de agenda/calendar. */
@@ -58,13 +56,12 @@ type Actions = {
   setIncluded: (row: Row, value: boolean) => void
   addManualRow: (date: string) => string
   removeManualRow: (key: string) => void
-  setDayStart: (value: string) => void
   importUserData: (data: Partial<UserData>) => void
   /** Borra lo escrito a mano; la agenda y los calendarios quedan */
   clearUserData: () => void
 }
 
-const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], dayStart: '08:00' }
+const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [] }
 
 const without = <T,>(o: Record<string, T>, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key))
 
@@ -187,7 +184,6 @@ export const useStore = create<UserData & Actions>()(
         return key
       },
       removeManualRow: (key) => set((s) => ({ manualRows: s.manualRows.filter((r) => r.key !== key) })),
-      setDayStart: (dayStart) => set({ dayStart }),
       importUserData: (data) => set({ ...emptyUser, ...data }),
       clearUserData: () => set({ ...emptyUser }),
     }),
@@ -195,8 +191,11 @@ export const useStore = create<UserData & Actions>()(
       name: 'quiro-v1',
       version: 1,
       storage: safeStorage,
-      // en el merge de datos viejos, los ajustes nuevos toman su valor por defecto
-      merge: (persisted, current) => ({ ...current, ...(persisted as Partial<UserData>) }),
+      // en el merge de datos viejos, los ajustes nuevos toman su valor por defecto; la hora de inicio del día ya no existe
+      merge: (persisted, current) => {
+        const { dayStart: _old, ...saved } = persisted as Partial<UserData> & { dayStart?: string }
+        return { ...current, ...saved }
+      },
     },
   ),
 )

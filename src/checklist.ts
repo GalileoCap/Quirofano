@@ -32,31 +32,6 @@ export function sortRows(rows: Row[], order: Record<string, string[]>): Row[] {
   return [...rows].sort((a, b) => a.date.localeCompare(b.date) || pos(a) - pos(b))
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
-/** 8 → '8', 8:30 → '8.30', como se escribe en la planilla. */
-const clock = (min: number) => (min % 60 ? `${Math.floor(min / 60)}.${pad(min % 60)}` : `${Math.floor(min / 60)}`)
-
-/** '8:00' / '08.00' / '8' → minutos desde la medianoche (null si no se entiende). */
-export function parseClock(s: string): number | null {
-  const m = /^\s*(\d{1,2})(?:[:.,h](\d{2}))?\s*$/.exec(s)
-  if (!m || +m[1] > 23 || (m[2] && +m[2] > 59)) return null
-  return +m[1] * 60 + (m[2] ? +m[2] : 0)
-}
-
-/**
- * Horario de cada cirugía: una atrás de otra desde la hora de inicio, según la duración (60 min si falta).
- * Si una fila ya trae su horario escrito a mano se respeta y no mueve a las demás.
- */
-export function withTimes(rows: Row[], dayStart: number): Row[] {
-  const cursor: Record<string, number> = {}
-  return rows.map((r) => {
-    const start = cursor[r.date] ?? dayStart
-    const minutes = +r.duration || 60
-    cursor[r.date] = start + minutes
-    return r.time.trim() ? r : { ...r, time: `${clock(start)}-${clock(start + minutes)}` }
-  })
-}
-
 const HEADER_TOP = ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'QUIROFANO', 'QUIRO DIA']
 
 const dmy = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`

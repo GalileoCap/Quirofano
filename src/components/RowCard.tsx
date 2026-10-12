@@ -63,7 +63,7 @@ export default function RowCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="badge badge-sm badge-primary badge-soft tabular-nums">{row.time}</span>
+              {row.time && <span className="badge badge-sm badge-primary badge-soft tabular-nums">{row.time}</span>}
               <span className="font-bold">{row.name || 'Sin nombre'}</span>
               <span className="text-xs text-base-content/60">{row.hc}</span>
               {row.source === 'calendar' && <span className="badge badge-sm badge-warning">Solo en el calendar</span>}
@@ -123,10 +123,11 @@ export default function RowCard({
             </div>
           </div>
         )}
-        <div className="grid grid-cols-[1fr_1fr] gap-2 sm:grid-cols-[1fr_1fr_2fr]">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-[1fr_1fr_1fr_2fr]">
+          <Check row={row} field="time" label="Horario" />
           <Check row={row} field="prequi" label="Prequi" />
           <Check row={row} field="hcCheck" label="HC" />
-          <Check row={row} field="extra" label="Notas" className="col-span-2 sm:col-span-1" />
+          <Check row={row} field="extra" label="Notas" className="col-span-3 sm:col-span-1" />
         </div>
       </div>
     </li>

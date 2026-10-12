@@ -1,0 +1,31 @@
+import { normName } from './agenda.ts'
+import { agendaValue, eventValue } from './origin.ts'
+import type { AgendaRow, CalEvent, Field } from './types.ts'
+
+/** Los campos que ofrecen sugerencias: los que repiten valores (el nombre, la HC o el teléfono son de cada paciente). */
+export const SUGGESTED_FIELDS: Field[] = ['surgery', 'surgeon', 'assistant', 'eye', 'anesthesia', 'contact', 'duration']
+
+/**
+ * Valores que ya hay en la agenda y el calendar para cada campo, del más usado al menos usado. Las variantes de
+ * escritura (mayúsculas, acentos, espacios) cuentan como una sola y se ofrece la grafía más usada.
+ */
+export function suggestions(agenda: AgendaRow[], events: CalEvent[], limit = 150): Partial<Record<Field, string[]>> {
+  const out: Partial<Record<Field, string[]>> = {}
+  for (const f of SUGGESTED_FIELDS) {
+    const groups = new Map<string, { total: number; spellings: Map<string, number> }>()
+    const values = [...agenda.map((a) => agendaValue(a, f)), ...events.map((e) => eventValue(e, f))]
+    for (const v of values) {
+      const norm = normName(v)
+      if (!norm) continue
+      const g = groups.get(norm) ?? { total: 0, spellings: new Map() }
+      g.total++
+      g.spellings.set(v, (g.spellings.get(v) ?? 0) + 1)
+      groups.set(norm, g)
+    }
+    out[f] = [...groups.values()]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, limit)
+      .map((g) => [...g.spellings].sort((a, b) => b[1] - a[1])[0][0])
+  }
+  return out
+}

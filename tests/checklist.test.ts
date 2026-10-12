@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { parseAgenda, parseDate } from '../src/agenda.ts'
-import { sheetTsv, sortRows, withTimes } from '../src/checklist.ts'
+import { sheetTsv, sortRows } from '../src/checklist.ts'
 import { parseCsv } from '../src/csv.ts'
 import { classifyEvents, parseDescription, parseIcs } from '../src/ics.ts'
 import { mergeChecklist, nameMatch } from '../src/merge.ts'
@@ -117,12 +117,13 @@ test('mergeChecklist: sin calendar en esas fechas usa la fecha de la agenda', ()
   assert.equal(res.calendarCovers, false)
 })
 
-test('withTimes: una cirugía atrás de otra según la duración, y se respeta lo escrito a mano', () => {
-  const res = mergeChecklist({ agenda: parseAgenda(agendaCsv), events: [], problems: [], from: '2026-10-13', to: '2026-10-13' })
-  const rows = withTimes(res.rows, 8 * 60)
-  assert.deepEqual(rows.map((r) => r.time), ['8-9', '9-9.30'])
-  const manual = withTimes(res.rows.map((r, i) => (i === 0 ? { ...r, time: '7-8' } : r)), 8 * 60)
-  assert.deepEqual(manual.map((r) => r.time), ['7-8', '9-9.30'])
+test('ningún campo se completa solo: el horario queda vacío hasta que se escribe, aunque falte la duración', () => {
+  const res = mergeChecklist({ agenda: parseAgenda(agendaCsv), events: [], problems: [], from: '2026-10-13', to: '2026-10-14' })
+  assert.ok(res.rows.length >= 3)
+  assert.ok(res.rows.every((r) => r.time === '' && r.prequi === '' && r.quirofano === ''))
+  const withEmptyDuration = res.rows.map((r) => ({ ...r, duration: '' }))
+  const lines = sheetTsv(withEmptyDuration).split('\n').map((l) => l.split('\t'))
+  assert.ok(lines.slice(2).filter((l) => l[1]).every((l) => l[3] === '' && l[4] === ''))
 })
 
 test('sortRows: respeta el orden elegido y deja las filas nuevas al final', () => {
@@ -134,7 +135,7 @@ test('sortRows: respeta el orden elegido y deja las filas nuevas al final', () =
 
 test('sheetTsv: formato de la planilla, días del último al primero', () => {
   const res = mergeChecklist({ agenda: parseAgenda(agendaCsv), events: [], problems: [], from: '2026-10-13', to: '2026-10-14' })
-  const lines = sheetTsv(withTimes(res.rows, 480)).split('\n').map((l) => l.split('\t'))
+  const lines = sheetTsv(res.rows).split('\n').map((l) => l.split('\t'))
   assert.equal(lines[0][19], 'QUIROFANO')
   assert.equal(lines[1][5], 'MIERCOLES')
   assert.equal(lines[1][15], 'PREQUI')

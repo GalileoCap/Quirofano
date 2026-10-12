@@ -15,7 +15,6 @@ export default function DataView() {
         <CalendarCard />
       </div>
       <div className="flex flex-col gap-4">
-        <PreferencesCard />
         <DataCard />
       </div>
     </div>
@@ -81,22 +80,6 @@ export function CalendarCard() {
   )
 }
 
-function PreferencesCard() {
-  const dayStart = useStore((s) => s.dayStart)
-  const setDayStart = useStore((s) => s.setDayStart)
-  return (
-    <Card title="Horarios">
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Hora de la primera cirugía de cada día</span>
-        <input type="time" className="input input-sm w-32" value={dayStart} onChange={(e) => e.target.value && setDayStart(e.target.value)} />
-        <span className="text-xs text-base-content/60">
-          Los horarios se calculan una cirugía atrás de otra según su duración. Podés escribir uno a mano en cualquier fila.
-        </span>
-      </label>
-    </Card>
-  )
-}
-
 function DataCard() {
   const store = useStore()
   const clearUserData = useStore((s) => s.clearUserData)
@@ -104,8 +87,8 @@ function DataCard() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const exportJson = () => {
-    const { edits, bases, snaps, order, included, manualRows, dayStart } = store
-    const blob = new Blob([JSON.stringify({ edits, bases, snaps, order, included, manualRows, dayStart }, null, 2)], { type: 'application/json' })
+    const { edits, bases, snaps, order, included, manualRows } = store
+    const blob = new Blob([JSON.stringify({ edits, bases, snaps, order, included, manualRows }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `quiro-${new Date().toISOString().slice(0, 10)}.json`

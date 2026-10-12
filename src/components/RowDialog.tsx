@@ -1,4 +1,6 @@
+import { useSuggestions } from '../hooks.ts'
 import { useStore } from '../store.ts'
+import { SUGGESTED_FIELDS } from '../suggest.ts'
 import type { Field, Row } from '../types.ts'
 
 const EDITABLE: { field: Field; label: string; wide?: boolean }[] = [
@@ -9,8 +11,8 @@ const EDITABLE: { field: Field; label: string; wide?: boolean }[] = [
   { field: 'surgeon', label: 'Cirujano' },
   { field: 'assistant', label: 'Ayudante' },
   { field: 'eye', label: 'Ojo' },
-  { field: 'duration', label: 'Duración (min)' },
-  { field: 'time', label: 'Horario (vacío = automático)' },
+  { field: 'duration', label: 'Duración' },
+  { field: 'time', label: 'Horario' },
   { field: 'anesthesia', label: 'Anestesia' },
   { field: 'diopters', label: 'Dioptrías' },
   { field: 'phone', label: 'Teléfono', wide: true },
@@ -24,7 +26,7 @@ const EDITABLE: { field: Field; label: string; wide?: boolean }[] = [
 /** Todos los campos de una cirugía. Cada cambio se guarda al escribirlo. */
 export default function RowDialog({ row, onClose }: { row: Row; onClose: () => void }) {
   const setEdit = useStore((s) => s.setEdit)
-  const manualTime = useStore((s) => s.edits[row.key]?.time ?? '')
+  const suggestions = useSuggestions()
   return (
     <dialog className="modal modal-open modal-bottom sm:modal-middle" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-box max-w-xl">
@@ -33,16 +35,21 @@ export default function RowDialog({ row, onClose }: { row: Row; onClose: () => v
           {EDITABLE.map(({ field, label, wide }) => (
             <label key={field} className={`flex flex-col gap-0.5 text-xs font-semibold ${wide ? 'col-span-2' : ''}`}>
               {label}
-              {/* el horario automático se ve como sugerencia: solo cuenta lo que se escribe */}
+              {/* texto libre (para poder anotar); las sugerencias salen de lo que ya hay en la agenda y el calendar */}
               <input
                 className="input input-sm w-full font-normal"
-                value={field === 'time' ? manualTime : row[field]}
-                placeholder={field === 'time' ? row.time : undefined}
+                value={row[field]}
+                list={SUGGESTED_FIELDS.includes(field) ? `sugerencias-${field}` : undefined}
                 onChange={(e) => setEdit(row, field, e.target.value)}
               />
             </label>
           ))}
         </div>
+        {SUGGESTED_FIELDS.map((f) => (
+          <datalist key={f} id={`sugerencias-${f}`}>
+            {suggestions[f]?.map((v) => <option key={v} value={v} />)}
+          </datalist>
+        ))}
         <div className="modal-action">
           <button className="btn btn-sm btn-primary" onClick={onClose}>
             Listo
