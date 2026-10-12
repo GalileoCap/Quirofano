@@ -2,31 +2,12 @@ import { useMemo, useState } from 'react'
 import { dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
 import { weekDays } from '../merge.ts'
-import { FILTERS, FILTER_LABELS, REQUIRED_FIELDS, flagNotes, inFilter, rowFlags, type Filter, type Flags, type Note } from '../overview.ts'
-import { useStore } from '../store.ts'
+import { FILTERS, FILTER_LABELS, REQUIRED_FIELDS, inFilter, rowFlags, type Filter, type Flags } from '../overview.ts'
 import type { Excluded, Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
-import RowCard from './RowCard.tsx'
+import { Chips, mark } from './RowParts.tsx'
 
 type Item = { row: Row; flags: Flags }
-
-const BADGE: Record<Note['kind'], string> = {
-  excluded: 'badge-ghost',
-  confirm: 'badge-warning',
-  sources: 'badge-error badge-soft',
-  solo: 'badge-warning badge-soft',
-  manual: 'badge-info badge-soft',
-  edited: 'badge-info badge-soft',
-  missing: 'badge-ghost border-dashed border-error/50',
-}
-
-/** Cómo se marca un campo en la fila: por confirmar, fuentes que no coinciden, escrito a mano. */
-function mark(f: Field, flags: Flags) {
-  if (flags.confirm.includes(f)) return 'rounded bg-warning/40 px-1'
-  if (flags.sources.includes(f)) return 'rounded bg-error/20 px-1'
-  if (flags.edited.includes(f)) return 'italic underline decoration-dotted underline-offset-2'
-  return ''
-}
 
 function Cell({ item, field, className = '' }: { item: Item; field: Field; className?: string }) {
   const value = item.row[field]
@@ -46,41 +27,26 @@ const Manual = ({ row, field, label }: { row: Row; field: Field; label: string }
   </span>
 )
 
-function Chips({ flags, row }: { flags: Flags; row: Row }) {
-  return (
-    <span className="flex flex-wrap items-center gap-1">
-      {flagNotes(flags).map((n) => (
-        <span key={n.kind + n.text} className={`badge badge-sm ${BADGE[n.kind]}`}>
-          {n.text}
-        </span>
-      ))}
-      {row.warning && <Icon name="warning" className="size-4 text-warning" aria-label={row.warning} />}
-    </span>
-  )
-}
-
 const GRID = 'sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1.5fr)_5.5rem_minmax(0,1fr)_minmax(0,1fr)_2.5rem]'
 
 export default function OverviewView({
   monday,
   rows,
   excluded,
+  onView,
   onEdit,
-  onRemove,
   onSource,
   onInclude,
 }: {
   monday: string
   rows: Row[]
   excluded: Excluded[]
+  onView: (key: string) => void
   onEdit: (key: string) => void
-  onRemove: (row: Row) => void
   onSource: (key: string) => void
   onInclude: (row: Row) => void
 }) {
   const [filter, setFilter] = useState<Filter>('all')
-  const [open, setOpen] = useState<string | null>(null)
-  const { moveRow, keepMine, useSource } = useStore()
 
   const items = useMemo<Item[]>(
     () => [...rows.map((row) => ({ row, flags: rowFlags(row) })), ...excluded.map(({ row, reason }) => ({ row, flags: rowFlags(row, reason) }))],
@@ -124,17 +90,13 @@ export default function OverviewView({
           <ul className="card card-border divide-y divide-base-300 bg-base-100">
             {shown.map((item) => {
               const { row, flags } = item
-              const isOpen = open === row.key && !flags.excluded
-              const dayRows = rows.filter((r) => r.date === date)
-              const pos = dayRows.findIndex((r) => r.key === row.key)
               return (
                 <li key={row.key} className={flags.excluded ? 'bg-base-200/60' : ''}>
                   <div className="flex items-start gap-1 p-1.5 sm:p-2">
                     <button
                       className={`grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 rounded px-1 text-left text-sm hover:bg-base-200/70 sm:gap-x-3 ${GRID} ${flags.excluded ? 'opacity-70' : ''}`}
-                      aria-expanded={isOpen}
                       title={flags.excluded ? 'Ver el origen' : 'Ver el detalle de esta cirugía'}
-                      onClick={() => (flags.excluded ? onSource(row.key) : setOpen(isOpen ? null : row.key))}
+                      onClick={() => (flags.excluded ? onSource(row.key) : onView(row.key))}
                     >
                       <span className="min-w-0 truncate font-bold">{row.name || 'Sin nombre'}</span>
                       <span className="min-w-0 truncate sm:hidden">
@@ -172,21 +134,6 @@ export default function OverviewView({
                       )}
                     </div>
                   </div>
-                  {isOpen && (
-                    <ul className="p-1.5 pt-0 sm:p-2 sm:pt-0">
-                      <RowCard
-                        row={row}
-                        first={pos <= 0}
-                        last={pos === dayRows.length - 1}
-                        onMove={(dir) => moveRow(date, dayRows.map((r) => r.key), row.key, dir)}
-                        onEdit={() => onEdit(row.key)}
-                        onRemove={() => onRemove(row)}
-                        onKeepMine={() => keepMine(row.key, row.conflicts ?? [])}
-                        onUseSource={() => useSource(row.key, row.conflicts ?? [])}
-                        onSource={() => onSource(row.key)}
-                      />
-                    </ul>
-                  )}
                 </li>
               )
             })}

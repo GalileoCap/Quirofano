@@ -59,7 +59,7 @@ Nada del checklist es una caja negra. Cada fila del cruce lleva `origin` (`src/t
 
 ## Vista resumen de la semana
 
-El checklist tiene tres vistas (`ChecklistView.tsx`): **Resumen** (por defecto, `OverviewView.tsx`), **Detalle** (las tarjetas de siempre) y **Calendario** (`CalendarView.tsx`, abajo). El resumen es una línea por cirugía, por día, para ver de lejos qué difiere o qué falta. Tocar una línea abre la tarjeta completa (con los botones de confirmar); las de "Sin incluir" aparecen en su día, atenuadas, con "Incluir". Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un filtro con su cuenta:
+El checklist tiene tres vistas (`ChecklistView.tsx`): **Resumen** (por defecto, `OverviewView.tsx`), **Detalle** (las tarjetas de siempre) y **Calendario** (`CalendarView.tsx`, abajo). El resumen es una línea por cirugía, por día, para ver de lejos qué difiere o qué falta. Tocar una línea abre el detalle (`DetailDialog.tsx`, solo lectura). Muestra las marcas, los datos agrupados, lo que se completa a mano, el aviso de "Difiere" con sus botones, subir/bajar, sacar y el chip de origen. "Editar" en ese modal abre el formulario, así que editar es un segundo click (el lápiz de la fila lo abre directo). Las de "Sin incluir" aparecen en su día, atenuadas, con "Incluir", y tocarlas abre el panel de origen. Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un filtro con su cuenta:
 
 - **Por confirmar**: lo escrito a mano que difiere de las fuentes y nadie confirmó (`conflicts`).
 - **Agenda ≠ calendar**: campos (o la fecha) en que las dos fuentes dicen cosas distintas, filas que están en una sola fuente, y las de "Sin incluir" por no estar en el calendar o estar suspendidas.
@@ -71,7 +71,7 @@ En la fila, la celda marcada en amarillo es un campo por confirmar, en rojo uno 
 
 ### Vista Calendario
 
-Los días del rango de la semana como columnas, igual que en `../guardias` (FullCalendar 6 con `daygrid`, locale `es`, mismos retoques `.fc` en `index.css`). Una tarjeta por cirugía en el orden del día; las de "Sin incluir" van al final, punteadas y atenuadas. Los textos de las marcas son los del Resumen (`flagNotes` en `overview.ts`, también salen como tooltip) y se ven en el borde: celeste = a mano, rojo = agenda ≠ calendar, amarillo con contorno = por confirmar. Tocar una cirugía abre el editor; una de "Sin incluir", el panel de origen.
+Los días del rango de la semana como columnas, igual que en `../guardias` (FullCalendar 6 con `daygrid`, locale `es`, mismos retoques `.fc` en `index.css`). Una tarjeta por cirugía en el orden del día; las de "Sin incluir" van al final, punteadas y atenuadas. Los textos de las marcas son los del Resumen (`flagNotes` en `overview.ts`, también salen como tooltip) y se ven en el borde: celeste = a mano, rojo = agenda ≠ calendar, amarillo con contorno = por confirmar. Tocar una cirugía abre el mismo detalle que en el Resumen; una de "Sin incluir", el panel de origen.
 
 **No hay grilla de horas**: el horario es texto libre y casi siempre está vacío (regla 1), así que un eje horario obligaría a leerlo y a calcular el fin con la duración. El horario, si se escribió, se muestra tal cual delante del nombre. En el teléfono el calendario se desliza hacia los costados (`DAY_MIN_REM` por día) en vez de apretar los nombres.
 

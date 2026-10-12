@@ -51,14 +51,14 @@ export default function CalendarView({
   to,
   rows,
   excluded,
-  onEdit,
+  onView,
   onSource,
 }: {
   from: string
   to: string
   rows: Row[]
   excluded: Excluded[]
-  onEdit: (key: string) => void
+  onView: (key: string) => void
   onSource: (key: string) => void
 }) {
   const events = useMemo<EventInput[]>(() => {
@@ -82,7 +82,7 @@ export default function CalendarView({
   const click = (arg: EventClickArg) => {
     const { flags } = arg.event.extendedProps as Ext
     if (flags.excluded) onSource(arg.event.id)
-    else onEdit(arg.event.id)
+    else onView(arg.event.id)
   }
   const clickRef = useRef(click)
   clickRef.current = click

@@ -8,6 +8,7 @@ import { EXCLUDED_LABELS } from '../overview.ts'
 import type { Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
 import CalendarView from './CalendarView.tsx'
+import DetailDialog from './DetailDialog.tsx'
 import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
@@ -25,6 +26,7 @@ function defaultMonday() {
 
 export default function ChecklistView() {
   const [monday, setMonday] = useState(defaultMonday)
+  const [viewing, setViewing] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [sourcing, setSourcing] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -44,6 +46,7 @@ export default function ChecklistView() {
     [monday, rows],
   )
   const conflicted = rows.filter((r) => r.conflicts)
+  const viewingRow = rows.find((r) => r.key === viewing)
   const editingRow = rows.find((r) => r.key === editing)
   const sourcingRow = rows.find((r) => r.key === sourcing) ?? excluded.find((x) => x.row.key === sourcing)?.row
 
@@ -171,11 +174,11 @@ export default function ChecklistView() {
       {news && news.items.length > 0 && <NewsCard news={news} onClose={() => setNews(null)} />}
 
       {mode === 'resumen' && (
-        <OverviewView monday={monday} rows={rows} excluded={excluded} onEdit={setEditing} onRemove={remove} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
+        <OverviewView monday={monday} rows={rows} excluded={excluded} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
       )}
 
       {mode === 'calendario' && (
-        <CalendarView from={range.from} to={range.to} rows={rows} excluded={excluded} onEdit={setEditing} onSource={setSourcing} />
+        <CalendarView from={range.from} to={range.to} rows={rows} excluded={excluded} onView={setViewing} onSource={setSourcing} />
       )}
 
       {mode === 'detalle' && !days.length && (
@@ -250,6 +253,22 @@ export default function ChecklistView() {
         </section>
       )}
 
+      {viewingRow && (
+        <DetailDialog
+          row={viewingRow}
+          dayRows={rows.filter((r) => r.date === viewingRow.date)}
+          onEdit={() => {
+            setViewing(null)
+            setEditing(viewingRow.key)
+          }}
+          onSource={() => setSourcing(viewingRow.key)}
+          onRemove={() => {
+            setViewing(null)
+            remove(viewingRow)
+          }}
+          onClose={() => setViewing(null)}
+        />
+      )}
       {sourcingRow && <SourceDialog row={sourcingRow} onClose={() => setSourcing(null)} />}
       {editingRow && <RowDialog row={editingRow} onClose={() => setEditing(null)} />}
       {toast && (

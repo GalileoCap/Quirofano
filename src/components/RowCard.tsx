@@ -1,7 +1,7 @@
-import { FIELD_LABELS } from '../format.ts'
 import { useStore } from '../store.ts'
 import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
+import { Conflicts, originLabel } from './RowParts.tsx'
 
 /** Casilla de las columnas del checklist que se completan a mano. */
 function Check({ row, field, label, className = '' }: { row: Row; field: Field; label: string; className?: string }) {
@@ -12,12 +12,6 @@ function Check({ row, field, label, className = '' }: { row: Row; field: Field; 
       <input className="cell-input font-normal normal-case tracking-normal text-base-content" value={row[field]} onChange={(e) => setEdit(row, field, e.target.value)} />
     </label>
   )
-}
-
-/** De qué fuentes salió la fila, como texto corto: "Agenda L214 + Calendar". */
-const originLabel = (row: Row) => {
-  const { agenda, event } = row.origin ?? {}
-  return [agenda && `Agenda L${agenda.line}`, event && 'Calendar'].filter(Boolean).join(' + ') || 'A mano'
 }
 
 const Detail = ({ label, value }: { label: string; value: string }) =>
@@ -102,27 +96,7 @@ export default function RowCard({
             </button>
           </div>
         </div>
-        {row.conflicts && (
-          <div role="alert" className="alert alert-warning alert-soft flex-col items-start gap-1.5 p-2 text-xs text-base-content">
-            <p className="font-semibold">Difiere de la agenda/el calendar:</p>
-            <ul className="flex flex-col gap-0.5">
-              {row.conflicts.map((c) => (
-                <li key={c.field}>
-                  <span className="font-semibold">{FIELD_LABELS[c.field]}</span>: en el checklist <q>{c.mine || 'vacío'}</q>, ahora dice <q>{c.now || 'vacío'}</q>
-                  {c.was !== undefined && c.was !== c.now && <span className="text-base-content/60"> (antes decía <q>{c.was || 'vacío'}</q>)</span>}
-                </li>
-              ))}
-            </ul>
-            <div className="flex gap-2">
-              <button className="btn btn-xs" onClick={onKeepMine}>
-                Dejar el mío
-              </button>
-              <button className="btn btn-xs btn-primary" onClick={onUseSource}>
-                Usar el de la agenda/calendar
-              </button>
-            </div>
-          </div>
-        )}
+        <Conflicts row={row} onKeepMine={onKeepMine} onUseSource={onUseSource} />
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-[1fr_1fr_1fr_2fr]">
           <Check row={row} field="time" label="Horario" />
           <Check row={row} field="prequi" label="Prequi" />
