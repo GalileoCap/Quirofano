@@ -28,7 +28,7 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm test` y mirarlo en el 
 
 1. **Ningún campo tiene un valor automático.** Cada valor viene de una fuente (agenda o calendar) o lo escribe la persona a mano. No se calcula, no se infiere, no hay "por defecto" ni "sugerencia que se completa sola". Por eso el **horario** queda vacío hasta que se escribe (no se calcula por duración ni hay hora de inicio del día), y la duración faltante no se reemplaza por 60. Si algún día algo se tiene que calcular, se discute antes. El cruce (qué fila de la agenda va con qué evento) sí decide de dónde sale cada dato, pero siempre se puede ver en el panel de origen.
 2. **Todos los campos son inputs de texto libre**, también Ojo, Dioptrías y Duración (no selectores ni números): la persona necesita poder agregar notas en cualquiera (`60 min, si hay tiempo`, `OD, pero revisar`).
-3. **Sugerencias, no automatismos:** los campos Cirugía, Cirujano, Ayudante, Ojo, Anestesia, Contacto y Duración ofrecen sugerencias (`<datalist>`) armadas con los valores que ya hay en la agenda y el calendar, de la más usada a la menos usada (`src/suggest.ts`). Elegir una sugerencia solo completa ese campo; nunca toca otro. Se puede escribir cualquier otra cosa.
+3. **Sugerencias, no automatismos:** los campos Cirugía, Cirujano, Ayudante, Ojo, Anestesia, Contacto y Duración ofrecen sugerencias (`<datalist>`) armadas con los valores que ya hay en la agenda y el calendar, del último año, de la más usada a la menos usada (`src/suggest.ts`). Elegir una sugerencia solo completa ese campo; nunca toca otro. Se puede escribir cualquier otra cosa.
 
 ## Cómo se arma el checklist
 

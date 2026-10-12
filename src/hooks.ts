@@ -29,11 +29,11 @@ export function useCalendarEvents() {
   }, [calendars])
 }
 
-/** Valores ya usados en la agenda y el calendar, para sugerir al escribir. */
+/** Valores usados en el último año en la agenda y el calendar, para sugerir al escribir. */
 export function useSuggestions() {
   const agenda = useAgenda()
   const { events } = useCalendarEvents()
-  return useMemo(() => suggestions(agenda, events), [agenda, events])
+  return useMemo(() => suggestions(agenda, events, { since: addDaysTo(isoOf(new Date()), -365) }), [agenda, events])
 }
 
 export type Checklist = {

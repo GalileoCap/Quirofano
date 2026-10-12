@@ -7,13 +7,16 @@ export const SUGGESTED_FIELDS: Field[] = ['surgery', 'surgeon', 'assistant', 'ey
 
 /**
  * Valores que ya hay en la agenda y el calendar para cada campo, del más usado al menos usado. Las variantes de
- * escritura (mayúsculas, acentos, espacios) cuentan como una sola y se ofrece la grafía más usada.
+ * escritura (mayúsculas, acentos, espacios) cuentan como una sola y se ofrece la grafía más usada. Solo cuenta lo
+ * de `since` en adelante ('YYYY-MM-DD'): la fecha de la cirugía o, si esa celda está rota, la de la carga.
  */
-export function suggestions(agenda: AgendaRow[], events: CalEvent[], limit = 150): Partial<Record<Field, string[]>> {
+export function suggestions(agenda: AgendaRow[], events: CalEvent[], { since, limit = 150 }: { since: string; limit?: number }): Partial<Record<Field, string[]>> {
   const out: Partial<Record<Field, string[]>> = {}
+  const recentAgenda = agenda.filter((a) => (a.date ?? a.stamp ?? '') >= since)
+  const recentEvents = events.filter((e) => e.date >= since)
   for (const f of SUGGESTED_FIELDS) {
     const groups = new Map<string, { total: number; spellings: Map<string, number> }>()
-    const values = [...agenda.map((a) => agendaValue(a, f)), ...events.map((e) => eventValue(e, f))]
+    const values = [...recentAgenda.map((a) => agendaValue(a, f)), ...recentEvents.map((e) => eventValue(e, f))]
     for (const v of values) {
       const norm = normName(v)
       if (!norm) continue
