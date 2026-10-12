@@ -66,3 +66,12 @@ export function lensChecks(rows: Row[], tasks: Record<string, TaskState>): LensC
     return { key, row, hasDiopters: !!clean(row.diopters), state: tasks[key] ?? NO_TASK }
   })
 }
+
+/**
+ * La tarea de la semana "Revisar que haya suficientes lentes" no se tilda: depende de sus revisiones por cirugía y
+ * está hecha cuando todas lo están (sin cirugías, no queda nada por revisar). Lo que se guardó como hecho en ella no cuenta.
+ */
+export function lensTask(item: TaskItem, checks: LensCheck[], now: string): TaskItem {
+  const done = checks.every((c) => c.state.done)
+  return { ...item, state: { ...item.state, done }, status: taskStatus(item.due, done, now) }
+}

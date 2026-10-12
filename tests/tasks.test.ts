@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { NO_TASK, TASK_DEFS, lensChecks, surgeryTasks, taskStatus, weekTasks, type TaskState } from '../src/tasks.ts'
+import { NO_TASK, TASK_DEFS, lensChecks, lensTask, surgeryTasks, taskStatus, weekTasks, type TaskState } from '../src/tasks.ts'
 import { useStore } from '../src/store.ts'
 import { FIELDS, type Fields, type Row, type Source } from '../src/types.ts'
 
@@ -307,4 +307,72 @@ test('tildar la revisión de lentes con setTask no toca el "llamar" de la misma 
   useStore.getState().setTask(call.key, { done: true, note: 'llamé' })
   assert.deepEqual(surgeryTasks([row], useStore.getState().tasks, '2026-10-12')[0]!.state, { done: true, note: 'llamé' })
   assert.deepEqual(lensChecks([row], useStore.getState().tasks)[0]!.state, NO_TASK)
+})
+
+// la tarea semanal de lentes depende de las revisiones por cirugía
+
+const LENS_ROWS = [mk('2026-10-14', '1/00'), mk('2026-10-13', '2/00'), mk('2026-10-16', '3/00')]
+const LENS_KEYS = lensChecks(LENS_ROWS, {}).map((c) => c.key)
+const DONE: TaskState = { done: true, note: '' }
+
+// estado guardado con las revisiones de los índices dados tildadas
+const checked = (...idx: number[]): Record<string, TaskState> => Object.fromEntries(idx.map((i) => [LENS_KEYS[i]!, DONE]))
+const lensItem = (tasks: Record<string, TaskState>, now: string) => weekTasks(MONDAY, tasks, now)[1]!
+
+test('lensTask: la tarea de lentes está hecha solo cuando están hechas todas las revisiones de las cirugías', () => {
+  const now = '2026-10-09'
+  const result = (tasks: Record<string, TaskState>) => lensTask(lensItem({}, now), lensChecks(LENS_ROWS, tasks), now)
+  assert.equal(result({}).state.done, false)
+  assert.equal(result(checked(1)).state.done, false)
+  assert.equal(result(checked(0, 2)).state.done, false)
+  assert.equal(result(checked(0, 1, 2)).state.done, true)
+  assert.equal(result(checked(0, 1, 2)).status, 'done')
+})
+
+test('lensTask: sin revisiones (semana sin cirugías) la tarea de lentes está hecha', () => {
+  const now = '2026-10-09'
+  const item = lensTask(lensItem({}, now), lensChecks([], {}), now)
+  assert.equal(item.state.done, true)
+  assert.equal(item.status, 'done')
+})
+
+test('lensTask: lo que se guardó como hecho en la tarea misma no la cierra mientras falte una revisión, y lo guardado como no hecho no la frena si están todas', () => {
+  const now = '2026-10-09'
+  const key = lensItem({}, now).key
+
+  const falsoHecho = { ...checked(0, 2), [key]: DONE }
+  const pendiente = lensTask(lensItem(falsoHecho, now), lensChecks(LENS_ROWS, falsoHecho), now)
+  assert.equal(pendiente.state.done, false)
+  assert.equal(pendiente.status, 'pending')
+
+  const falsoPendiente = { ...checked(0, 1, 2), [key]: { done: false, note: '' } }
+  const hecha = lensTask(lensItem(falsoPendiente, now), lensChecks(LENS_ROWS, falsoPendiente), now)
+  assert.equal(hecha.state.done, true)
+  assert.equal(hecha.status, 'done')
+})
+
+test('lensTask: conserva la nota guardada y no cambia la clave, la definición ni el vencimiento', () => {
+  const now = '2026-10-09'
+  const tasks = { ...checked(0), [lensItem({}, now).key]: { done: false, note: 'faltan los de la tarde' } }
+  const original = lensItem(tasks, now)
+  const pendiente = lensTask(original, lensChecks(LENS_ROWS, tasks), now)
+  assert.deepEqual(pendiente.state, { done: false, note: 'faltan los de la tarde' })
+  assert.equal(pendiente.key, original.key)
+  assert.equal(pendiente.def, original.def)
+  assert.equal(pendiente.due, original.due)
+
+  const todas = { ...checked(0, 1, 2), [original.key]: { done: false, note: 'faltan los de la tarde' } }
+  const hecha = lensTask(lensItem(todas, now), lensChecks(LENS_ROWS, todas), now)
+  assert.deepEqual(hecha.state, { done: true, note: 'faltan los de la tarde' })
+  assert.equal(hecha.key, original.key)
+  assert.equal(hecha.due, original.due)
+})
+
+const statusAt = (now: string, tasks: Record<string, TaskState>) => lensTask(lensItem(tasks, now), lensChecks(LENS_ROWS, tasks), now).status
+
+test('lensTask: el estado sigue a "hoy" (pendiente, hoy, vencida) si falta una revisión, y hecha gana aunque haya vencido', () => {
+  assert.equal(statusAt('2026-10-10', checked(0, 1)), 'pending')
+  assert.equal(statusAt('2026-10-11', checked(0, 1)), 'today')
+  assert.equal(statusAt('2026-10-12', checked(0, 1)), 'overdue')
+  assert.equal(statusAt('2026-10-12', checked(0, 1, 2)), 'done')
 })
