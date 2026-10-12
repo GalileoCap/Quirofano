@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import type { DayRange, Edits } from './checklist.ts'
 import type { RawEvent } from './ics.ts'
 import { snapOf, type Novelty, type Orphan } from './review.ts'
+import { NO_TASK, type TaskState } from './tasks.ts'
 import type { Conflict, Field, Row, Snap } from './types.ts'
 import { FIELDS } from './types.ts'
 
@@ -25,6 +26,8 @@ export type UserData = {
   ranges: Record<string, DayRange>
   /** Diferencias de fecha, presencia o fuentes ya reconocidas: clave de fila → huella de lo que decían las fuentes (`Flags.signature`) */
   acks: Record<string, string>
+  /** Tareas de la residente (hecha y nota) por clave de tarea (`TaskItem.key`); no entran en la exportación */
+  tasks: Record<string, TaskState>
 }
 
 /** Qué cambió en la última carga de agenda/calendar. */
@@ -51,6 +54,8 @@ type Actions = {
   acknowledge: (key: string, signature: string) => void
   /** Vuelve a avisar las diferencias de la fila. */
   unacknowledge: (key: string) => void
+  /** Cambia si una tarea está hecha y/o su nota; si vuelve a como estaba sin tocar, no deja rastro. */
+  setTask: (key: string, patch: Partial<TaskState>) => void
   /** Uso lo de la agenda/el calendar: se descarta lo escrito en esos campos. */
   takeSource: (key: string, conflicts: Conflict[]) => void
   /** Una fila con trabajo manual que ya no está en las fuentes: llevarlo a la fila nueva / dejarla como agregada a mano / sacarla */
@@ -71,7 +76,7 @@ type Actions = {
   clearUserData: () => void
 }
 
-const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], ranges: {}, acks: {} }
+const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], ranges: {}, acks: {}, tasks: {} }
 
 /** Los campos de una edición, menos los que están en conflicto. */
 const withoutFields = (e: Edits[string] | undefined, conflicts: Conflict[]) => Object.fromEntries(Object.entries(e ?? {}).filter(([f]) => !conflicts.some((c) => c.field === f)))
@@ -158,6 +163,11 @@ export const useStore = create<UserData & Actions>()(
         set((s) => ({ edits: { ...s.edits, [key]: withoutFields(s.edits[key], conflicts) }, bases: { ...s.bases, [key]: withoutFields(s.bases[key], conflicts) } })),
       acknowledge: (key, signature) => set((s) => ({ acks: { ...s.acks, [key]: signature } })),
       unacknowledge: (key) => set((s) => ({ acks: without(s.acks, key) })),
+      setTask: (key, patch) =>
+        set((s) => {
+          const next = { ...(s.tasks[key] ?? NO_TASK), ...patch }
+          return { tasks: next.done === NO_TASK.done && next.note === NO_TASK.note ? without(s.tasks, key) : { ...s.tasks, [key]: next } }
+        }),
       moveOrphan: (o) =>
         set((s) => {
           const to = o.movedTo

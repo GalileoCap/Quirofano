@@ -2,18 +2,23 @@ import { useState } from 'react'
 import ChecklistView from './components/ChecklistView.tsx'
 import DataView from './components/DataView.tsx'
 import OriginalsView from './components/OriginalsView.tsx'
+import TasksView from './components/TasksView.tsx'
+import { defaultMonday } from './dates.ts'
 import Icon, { type IconName } from './components/Icon.tsx'
 
-type Tab = 'checklist' | 'originales' | 'datos'
+type Tab = 'checklist' | 'tareas' | 'originales' | 'datos'
 
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
   { key: 'checklist', label: 'Checklist', icon: 'check' },
+  { key: 'tareas', label: 'Tareas', icon: 'listChecks' },
   { key: 'originales', label: 'Originales', icon: 'database' },
   { key: 'datos', label: 'Datos', icon: 'settings' },
 ]
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('checklist')
+  // la semana se comparte entre el checklist y las tareas
+  const [monday, setMonday] = useState(defaultMonday)
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-3 p-2 pb-24 sm:gap-4 sm:p-4 sm:pb-4">
       <header className="flex items-center justify-between gap-2">
@@ -30,7 +35,15 @@ export default function App() {
           ))}
         </div>
       </header>
-      {tab === 'checklist' ? <ChecklistView /> : tab === 'originales' ? <OriginalsView /> : <DataView />}
+      {tab === 'checklist' ? (
+        <ChecklistView monday={monday} setMonday={setMonday} />
+      ) : tab === 'tareas' ? (
+        <TasksView monday={monday} setMonday={setMonday} />
+      ) : tab === 'originales' ? (
+        <OriginalsView />
+      ) : (
+        <DataView />
+      )}
       <nav className="dock dock-md sm:hidden" role="tablist">
         {TABS.map((t) => (
           <button

@@ -1,32 +1,27 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { sheetCsv, sheetTsv, weekRange } from '../checklist.ts'
-import { addDaysTo, dayOfWeek, mondayOf, today } from '../dates.ts'
-import { DAY_LABELS, shortDate, weekLabel } from '../format.ts'
+import { addDaysTo, dayOfWeek } from '../dates.ts'
+import { DAY_LABELS, shortDate } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
 import { useSources, useStore } from '../store.ts'
 import { flagNotes, inFilter, itemsOf, type Filter } from '../overview.ts'
 import type { Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
-import CalendarView from './CalendarView.tsx'
 import DetailDialog from './DetailDialog.tsx'
 import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
 import RowDialog from './RowDialog.tsx'
 import SourceDialog from './SourceDialog.tsx'
+import WeekNav from './WeekNav.tsx'
+
+// FullCalendar es lo más pesado de la app: se baja solo al abrir la vista Calendario
+const CalendarView = lazy(() => import('./CalendarView.tsx'))
 import FilterBar from './FilterBar.tsx'
 import OverviewView from './OverviewView.tsx'
 import { NewsCard, Orphans } from './Review.tsx'
 
-/** La semana que se arma por defecto: la actual, y desde el sábado la que viene. */
-function defaultMonday() {
-  const now = today()
-  const dow = dayOfWeek(now)
-  return mondayOf(dow === 6 ? addDaysTo(now, 2) : dow === 0 ? addDaysTo(now, 1) : now)
-}
-
-export default function ChecklistView() {
-  const [monday, setMonday] = useState(defaultMonday)
+export default function ChecklistView({ monday, setMonday }: { monday: string; setMonday: (monday: string) => void }) {
   const [viewing, setViewing] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [sourcing, setSourcing] = useState<string | null>(null)
@@ -99,16 +94,7 @@ export default function ChecklistView() {
     <div className="flex flex-col gap-3">
       <div className="card card-border bg-base-100">
         <div className="card-body flex-row flex-wrap items-center gap-2 p-2.5 sm:p-3">
-          <button className="btn btn-sm btn-square" aria-label="Semana anterior" onClick={() => setMonday(addDaysTo(monday, -7))}>
-            <Icon name="chevronLeft" />
-          </button>
-          <h2 className="font-display min-w-0 flex-1 text-center text-lg font-semibold text-primary sm:flex-none sm:text-xl">{weekLabel(monday)}</h2>
-          <button className="btn btn-sm btn-square" aria-label="Semana siguiente" onClick={() => setMonday(addDaysTo(monday, 7))}>
-            <Icon name="chevronRight" />
-          </button>
-          <button className="btn btn-sm btn-ghost" onClick={() => setMonday(defaultMonday())}>
-            Hoy
-          </button>
+          <WeekNav monday={monday} onChange={setMonday} />
           <div role="group" aria-label="Vista" className="join w-full sm:w-auto">
             {(['resumen', 'detalle', 'calendario'] as const).map((m) => (
               <button key={m} className={`btn btn-sm join-item flex-1 capitalize sm:flex-none ${mode === m ? 'btn-primary' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
@@ -192,7 +178,9 @@ export default function ChecklistView() {
       )}
 
       {mode === 'calendario' && (
-        <CalendarView from={range.from} to={range.to} items={items} filter={filter} onView={setViewing} onSource={setSourcing} />
+        <Suspense fallback={<p className="py-8 text-center text-base-content/60">Cargando el calendario…</p>}>
+          <CalendarView from={range.from} to={range.to} items={items} filter={filter} onView={setViewing} onSource={setSourcing} />
+        </Suspense>
       )}
 
       {mode === 'detalle' && !days.length && (

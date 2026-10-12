@@ -107,6 +107,16 @@ Los días del rango de la semana como columnas, igual que en `../guardias` (Full
 
 No hay grilla de horas. El horario es texto libre y casi siempre está vacío (regla 1), así que un eje horario obligaría a leerlo y a calcular el fin con la duración. El horario, si se escribió, se muestra tal cual delante del nombre. En el teléfono el calendario se desliza hacia los costados (`DAY_MIN_REM` por día) en vez de apretar los nombres.
 
+## Tareas
+
+Pestaña "Tareas" (`TasksView.tsx`, definiciones en `src/tasks.ts`): lo que la residente tiene que hacer además del checklist. Viven solo en el sitio y no entran en la planilla que se exporta (sí en el respaldo de Datos, en `tasks`). Comparte la semana con el Checklist (`monday` vive en `App.tsx`).
+
+- Tareas de la semana: se completan antes del lunes (vencen el domingo anterior). Hoy: hacer la valija y revisar que haya suficientes lentes. En esta última, un desplegable muestra las dioptrías tal cual están en cada cirugía de la semana (sin sumarlas ni interpretarlas; lo que es «.» o «-» cuenta como sin cargar).
+- Tareas por cirugía: se arman por cada fila del checklist de la semana. Hoy: llamar al paciente dos días antes (días corridos, sin ajustar por fin de semana: una cirugía del lunes se llama el sábado). Muestra el teléfono que tiene la fila.
+- Cada tarea tiene casilla (hecha) y una nota de texto libre. El estado de una tarea se guarda en `tasks` por clave de tarea (`TaskItem.key`: id de la tarea y lunes de la semana, o clave de la fila `fecha|HC`). Si una cirugía cambia de día es otra fila, así que sus tareas empiezan de cero (lo anterior queda guardado sin mostrarse).
+- Estados: hecha, vencida (la fecha pasó), para hoy y pendiente (`taskStatus`). Una tarea sin tocar no deja nada guardado.
+- Agregar una tarea es agregar una entrada a `TASK_DEFS` (`scope: 'week' | 'surgery'` y `daysBefore`); el resto sale solo.
+
 ## Lo que no se puede automatizar
 
 El checklist que arma la residente a mano no sale ni del calendar ni de la agenda por fecha. Tiene cirugías movidas, sumadas y bajadas por conversaciones que no quedaron escritas en ninguna de las dos (en la semana del 12/10, de 34 filas, 10 no estaban en el calendar y 5 del calendar no estaban en el checklist). Por eso el cruce propone y avisa, y la persona incluye, saca o edita. No hay que intentar "adivinar" más.

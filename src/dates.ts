@@ -42,3 +42,10 @@ export const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-$
 
 /** Hoy, en hora local. Es el único lugar que lee el reloj para las fechas. */
 export const today = () => isoOf(new Date())
+
+/** La semana que se arma por defecto: la actual, y desde el sábado la que viene. */
+export function defaultMonday() {
+  const now = today()
+  const dow = dayOfWeek(now)
+  return mondayOf(dow === 6 ? addDaysTo(now, 2) : dow === 0 ? addDaysTo(now, 1) : now)
+}

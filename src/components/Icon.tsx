@@ -65,6 +65,7 @@ const PATHS = {
       <path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8" />
     </>
   ),
+  listChecks: <path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8" />,
   database: (
     <>
       <ellipse cx="12" cy="5" rx="9" ry="3" />
