@@ -1,9 +1,9 @@
 import esLocale from '@fullcalendar/core/locales/es'
-import type { EventClickArg, EventContentArg, EventInput } from '@fullcalendar/core'
+import type { DayHeaderContentArg, EventClickArg, EventContentArg, EventInput } from '@fullcalendar/core'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import FullCalendar from '@fullcalendar/react'
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
-import { addDaysTo } from '../dates.ts'
+import { addDaysTo, isoOf } from '../dates.ts'
 import { flagNotes, inFilter, type Filter, type Flags, type Item } from '../overview.ts'
 import type { Row } from '../types.ts'
 import Icon from './Icon.tsx'
@@ -53,6 +53,7 @@ export default function CalendarView({
   filter,
   onView,
   onSource,
+  onAdd,
 }: {
   from: string
   to: string
@@ -61,6 +62,8 @@ export default function CalendarView({
   filter: Filter
   onView: (key: string) => void
   onSource: (key: string) => void
+  /** Agrega una cirugía vacía ese día (YYYY-MM-DD) */
+  onAdd: (date: string) => void
 }) {
   const events = useMemo<EventInput[]>(() => {
     return items.filter((i) => inFilter(i.flags, filter)).map(({ row, flags }, idx): EventInput => ({
@@ -90,6 +93,23 @@ export default function CalendarView({
   })
   const onEventClick = useCallback((arg: EventClickArg) => clickRef.current(arg), [])
 
+  // el "+" de cada día agrega una cirugía ese día
+  const addRef = useRef(onAdd)
+  useLayoutEffect(() => {
+    addRef.current = onAdd
+  })
+  const renderDayHeader = useCallback(
+    (arg: DayHeaderContentArg) => (
+      <span className="inline-flex items-center gap-1">
+        {arg.text}
+        <button className="btn btn-ghost btn-xs btn-square" title="Agregar una cirugía este día" aria-label={`Agregar una cirugía el ${arg.text}`} onClick={() => addRef.current(isoOf(arg.date))}>
+          <Icon name="plus" />
+        </button>
+      </span>
+    ),
+    [],
+  )
+
   return (
     <div className="card card-border cal-card bg-base-100">
       <div className="overflow-x-auto">
@@ -104,6 +124,7 @@ export default function CalendarView({
             height="auto"
             dayMaxEvents={false}
             dayHeaderFormat={DAY_HEADER}
+            dayHeaderContent={renderDayHeader}
             events={events}
             eventOrder="idx"
             eventContent={renderEvent}

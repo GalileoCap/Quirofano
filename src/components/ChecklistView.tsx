@@ -5,22 +5,21 @@ import { DAY_LABELS, shortDate } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
 import { problemKey, problemSignature, problemText, splitProblems } from '../problems.ts'
 import { useSources, useStore } from '../store.ts'
-import { flagNotes, inFilter, itemsOf, type Filter } from '../overview.ts'
+import { itemsOf, type Filter } from '../overview.ts'
 import type { Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
 import DetailDialog from './DetailDialog.tsx'
 import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
-import RowCard from './RowCard.tsx'
 import RowDialog from './RowDialog.tsx'
 import SourceDialog from './SourceDialog.tsx'
 import WeekNav from './WeekNav.tsx'
-
-// FullCalendar es lo más pesado de la app: se baja solo al abrir la vista Calendario
-const CalendarView = lazy(() => import('./CalendarView.tsx'))
 import FilterBar from './FilterBar.tsx'
 import OverviewView from './OverviewView.tsx'
 import { NewsCard, Orphans } from './Review.tsx'
+
+// FullCalendar es lo más pesado de la app: se baja solo al abrir la vista Calendario
+const CalendarView = lazy(() => import('./CalendarView.tsx'))
 
 export default function ChecklistView({ monday, setMonday }: { monday: string; setMonday: (monday: string) => void }) {
   const [viewing, setViewing] = useState<string | null>(null)
@@ -28,10 +27,10 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
   const [sourcing, setSourcing] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
-  const [mode, setMode] = useState<'resumen' | 'detalle' | 'calendario'>('resumen')
+  const [mode, setMode] = useState<'resumen' | 'calendario'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings, problems } = useChecklist(monday)
-  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, takeSource, news, setNews, ranges, setRange, acks, acknowledge, unacknowledge } = useStore()
+  const { setIncluded, addManualRow, removeManualRow, keepMine, news, setNews, ranges, setRange, acks, acknowledge, unacknowledge } = useStore()
   const range = weekRange(monday, ranges)
   const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
   const orphans = useOrphans()
@@ -39,14 +38,8 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
   const items = useMemo(() => itemsOf(rows, excluded, acks), [rows, excluded, acks])
   const unreadable = useMemo(() => splitProblems(problems, acks), [problems, acks])
   const flagsOf = (key: string) => items.find((i) => i.row.key === key)?.flags
-  const days = useMemo(
-    () =>
-      weekDays(monday)
-        .map((date) => ({ date, rows: items.filter((i) => i.row.date === date && !i.flags.excluded && inFilter(i.flags, filter)).map((i) => i.row) }))
-        .filter((d) => d.rows.length),
-    [monday, items, filter],
-  )
-  const shownExcluded = items.filter((i) => i.flags.excluded && inFilter(i.flags, filter))
+  // los días que se arman (el rango elegido de la semana), para poder agregar una cirugía en cualquiera
+  const rangeDays = weekDays(monday).filter((d) => d >= range.from && d <= range.to)
   const conflicted = rows.filter((r) => r.conflicts)
   const viewingRow = rows.find((r) => r.key === viewing)
   const editingRow = rows.find((r) => r.key === editing)
@@ -81,6 +74,9 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
     if (signature) acknowledge(key, signature)
   }
 
+  /** Agrega una cirugía vacía ese día y abre el formulario. */
+  const add = (date: string) => setEditing(addManualRow(date))
+
   const remove = (r: Row) => (r.source === 'manual' ? removeManualRow(r.key) : setIncluded(r, false))
 
   if (!hasSources)
@@ -98,7 +94,7 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
         <div className="card-body flex-row flex-wrap items-center gap-2 p-2.5 sm:p-3">
           <WeekNav monday={monday} onChange={setMonday} />
           <div role="group" aria-label="Vista" className="join w-full sm:w-auto">
-            {(['resumen', 'detalle', 'calendario'] as const).map((m) => (
+            {(['resumen', 'calendario'] as const).map((m) => (
               <button key={m} className={`btn btn-sm join-item flex-1 capitalize sm:flex-none ${mode === m ? 'btn-primary' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
                 {m}
               </button>
@@ -204,96 +200,13 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
       <FilterBar items={items} filter={filter} onFilter={setFilter} />
 
       {mode === 'resumen' && (
-        <OverviewView monday={monday} rows={rows} items={items} filter={filter} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} onAck={ack} />
+        <OverviewView days={rangeDays} rows={rows} items={items} filter={filter} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} onAck={ack} onAdd={add} />
       )}
 
       {mode === 'calendario' && (
         <Suspense fallback={<p className="py-8 text-center text-base-content/60">Cargando el calendario…</p>}>
-          <CalendarView from={range.from} to={range.to} items={items} filter={filter} onView={setViewing} onSource={setSourcing} />
+          <CalendarView from={range.from} to={range.to} items={items} filter={filter} onView={setViewing} onSource={setSourcing} onAdd={add} />
         </Suspense>
-      )}
-
-      {mode === 'detalle' && !days.length && (
-        <p className="py-8 text-center text-base-content/60">
-          {filter === 'all' ? 'No hay cirugías esta semana' : 'Ninguna cirugía en este filtro'}
-          {shownExcluded.length ? ' (hay algunas sin incluir más abajo)' : ''}.
-        </p>
-      )}
-
-      {mode === 'detalle' && days.map(({ date, rows: dayRows }) => {
-        const keys = dayRows.map((r) => r.key)
-        return (
-          <section key={date} className="flex flex-col gap-2">
-            <h3 className="flex items-baseline gap-2 px-1">
-              <span className="font-display text-lg font-semibold italic text-primary">{DAY_LABELS[dayOfWeek(date)]}</span>
-              <span className="text-sm text-base-content/60">
-                {shortDate(date)} · {dayRows.length} {dayRows.length === 1 ? 'cirugía' : 'cirugías'}
-              </span>
-              <button className="btn btn-ghost btn-xs ml-auto" onClick={() => setEditing(addManualRow(date))}>
-                <Icon name="plus" /> Agregar
-              </button>
-            </h3>
-            <ul className="flex flex-col gap-2">
-              {dayRows.map((r, i) => (
-                <RowCard
-                  key={r.key}
-                  row={r}
-                  presence={flagsOf(r.key) && flagNotes(flagsOf(r.key)!).find((n) => n.kind === 'presence')?.text}
-                  first={i === 0}
-                  last={i === dayRows.length - 1}
-                  onMove={(dir) => moveRow(date, keys, r.key, dir)}
-                  onEdit={() => setEditing(r.key)}
-                  onRemove={() => remove(r)}
-                  onKeepMine={() => keepMine(r.key, r.conflicts ?? [])}
-                  onUseSource={() => takeSource(r.key, r.conflicts ?? [])}
-                  onSource={() => setSourcing(r.key)}
-                  acked={!!flagsOf(r.key)?.acked}
-                  onAck={flagsOf(r.key)?.signature && !flagsOf(r.key)?.acked ? () => ack(r.key) : undefined}
-                />
-              ))}
-            </ul>
-          </section>
-        )
-      })}
-
-      {mode === 'detalle' && shownExcluded.length > 0 && (
-        <section className="card card-border bg-base-100">
-          <div className="card-body gap-2 p-3">
-            <div className="flex items-center gap-2">
-              <h3 className="card-title flex-1 text-base">Sin incluir ({shownExcluded.length})</h3>
-              <button className="btn btn-xs" onClick={() => shownExcluded.forEach(({ row, flags }) => flags.excluded !== 'suspended' && setIncluded(row, true))}>
-                Incluir todas
-              </button>
-            </div>
-            <p className="text-xs text-base-content/60">
-              Las sacaste vos o están suspendidas en el calendar. Incluilas si corresponde.
-            </p>
-            <ul className="flex flex-col gap-1">
-              {shownExcluded.map(({ row, flags }) => (
-                <li key={row.key} className="flex items-center gap-2 border-l-8 border-error bg-error/10 py-1 pl-2 text-sm">
-                  <span className="w-12 shrink-0 tabular-nums text-base-content/60">{shortDate(row.date)}</span>
-                  <span className="min-w-0 flex-1 truncate">
-                    <span className="font-semibold">{row.name}</span> · {row.surgery}
-                  </span>
-                  <span className="badge badge-sm badge-error hidden h-auto whitespace-normal py-0.5 text-left font-bold sm:inline-flex">
-                    {flagNotes(flags).find((n) => n.kind === 'presence')?.text}
-                  </span>
-                  {flags.signature && !flags.acked && (
-                    <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que cambie en la agenda o el calendar" onClick={() => ack(row.key)}>
-                      Reconocer
-                    </button>
-                  )}
-                  <button className="btn btn-ghost btn-xs btn-square" title="Ver el origen" aria-label="Ver el origen" onClick={() => setSourcing(row.key)}>
-                    <Icon name="fileText" />
-                  </button>
-                  <button className="btn btn-xs" onClick={() => setIncluded(row, true)}>
-                    Incluir
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
       )}
 
       {viewingRow && viewingFlags && (

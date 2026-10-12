@@ -1,6 +1,5 @@
 import { dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
-import { weekDays } from '../merge.ts'
 import { REQUIRED_FIELDS, inFilter, type Filter, type Item } from '../overview.ts'
 import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
@@ -27,7 +26,7 @@ const Manual = ({ row, field, label }: { row: Row; field: Field; label: string }
 const GRID = 'sm:grid-cols-[minmax(0,1.7fr)_minmax(0,1.5fr)_5.5rem_minmax(0,1fr)_minmax(0,1fr)_2.5rem]'
 
 export default function OverviewView({
-  monday,
+  days: dayList,
   rows,
   items,
   filter,
@@ -36,8 +35,10 @@ export default function OverviewView({
   onSource,
   onInclude,
   onAck,
+  onAdd,
 }: {
-  monday: string
+  /** Días del rango de la semana (YYYY-MM-DD) */
+  days: string[]
   rows: Row[]
   /** Las del checklist y las de "Sin incluir", con sus marcas */
   items: Item[]
@@ -47,8 +48,9 @@ export default function OverviewView({
   onSource: (key: string) => void
   onInclude: (row: Row) => void
   onAck: (key: string) => void
+  onAdd: (date: string) => void
 }) {
-  const days = weekDays(monday)
+  const days = dayList
     .map((date) => ({
       date,
       shown: items.filter((i) => i.row.date === date && inFilter(i.flags, filter)),
@@ -56,24 +58,29 @@ export default function OverviewView({
       all: items.filter((i) => i.row.date === date).length,
       diffs: items.filter((i) => i.row.date === date && i.flags.presence).length,
     }))
-    .filter((d) => d.shown.length)
+    // con el filtro puesto solo los días que tienen algo; sin filtro todos, para poder agregar una cirugía en uno vacío
+    .filter((d) => d.shown.length || filter === 'all')
 
   return (
     <div className="flex flex-col gap-3">
-      {!days.length && <p className="py-8 text-center text-base-content/60">{filter === 'all' ? 'No hay cirugías esta semana.' : 'Ninguna cirugía en este filtro.'}</p>}
+      {!days.length && <p className="py-8 text-center text-base-content/60">Ninguna cirugía en este filtro.</p>}
 
       {days.map(({ date, shown, included, all, diffs }) => (
         <section key={date} className="flex flex-col gap-1">
-          <h3 className="flex items-baseline gap-2 px-1">
+          <h3 className="flex flex-wrap items-baseline gap-x-2 px-1">
             <span className="font-display text-lg font-semibold italic text-primary">{DAY_LABELS[dayOfWeek(date)]}</span>
             <span className="text-sm text-base-content/60">
               {shortDate(date)} ·{' '}
               {filter === 'all'
-                ? `${included} ${included === 1 ? 'cirugía' : 'cirugías'}${all > included ? ` · ${all - included} sin incluir` : ''}`
+                ? `${included ? `${included} ${included === 1 ? 'cirugía' : 'cirugías'}` : 'sin cirugías'}${all > included ? ` · ${all - included} sin incluir` : ''}`
                 : `${shown.length} de ${all}`}
             </span>
             {diffs > 0 && filter === 'all' && <span className="badge badge-sm badge-error font-bold">{diffs} de fecha o presencia</span>}
+            <button className="btn btn-ghost btn-xs ml-auto" onClick={() => onAdd(date)}>
+              <Icon name="plus" /> Agregar
+            </button>
           </h3>
+          {shown.length > 0 && (
           <ul className="card card-border divide-y divide-base-300 bg-base-100">
             {shown.map((item) => {
               const { row, flags } = item
@@ -130,6 +137,7 @@ export default function OverviewView({
               )
             })}
           </ul>
+          )}
         </section>
       ))}
     </div>
