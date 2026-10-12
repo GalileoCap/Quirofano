@@ -29,6 +29,9 @@ export const FIELD_LABELS: Record<Field, string> = {
 /** '2026-10-13' → '13/10'. */
 export const shortDate = (iso: string) => `${iso.slice(8, 10).replace(/^0/, '')}/${iso.slice(5, 7).replace(/^0/, '')}`
 
+/** '2026-10-13' → '13/10/2026'. */
+export const longDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
+
 /** Título de la semana que empieza en `monday`: "12 – 18 de octubre de 2026". */
 export function weekLabel(monday: string) {
   const sunday = addDaysTo(monday, 6)

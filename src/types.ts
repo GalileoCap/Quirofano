@@ -24,6 +24,8 @@ export type AgendaRow = {
   notes: string
   age: string
   dni: string
+  /** Las celdas de la fila tal como están en el CSV, sin interpretar */
+  cells: string[]
 }
 
 export type CalendarKind = 'surgery' | 'suspension'
@@ -44,6 +46,8 @@ export type CalEvent = {
   diopters: string
   hc: string
   phone: string
+  /** La descripción del evento tal como viene en el .ics */
+  description: string
 }
 
 /** Un evento de un calendario de cirugías que no tiene el formato esperado (se avisa en vez de ignorarlo). */
@@ -86,6 +90,16 @@ export type Conflict = { field: Field; mine: string; was?: string; now: string }
 /** Columnas que solo existen en el checklist (las fuentes no las traen): escribirlas no es una diferencia. */
 export const MANUAL_FIELDS: readonly Field[] = ['time', 'prequi', 'hcCheck', 'extra', 'quirofano', 'quiroDia']
 
+/** De dónde salió una fila del cruce: las fuentes que la armaron y qué fuente puso cada campo. */
+export type Origin = {
+  agenda?: AgendaRow
+  event?: CalEvent
+  /** Cómo se encontró la fila de la agenda para el evento: por HC o por nombre */
+  by?: 'hc' | 'name'
+  /** Fuente de cada campo que tiene valor (el horario y las columnas a mano no figuran) */
+  fields: Partial<Record<Field, 'agenda' | 'calendar'>>
+}
+
 /** Una fila del checklist: datos de la agenda + columnas que se completan a mano. */
 export type Row = Fields & {
   /** Identifica la fila entre cambios de agenda: fecha + paciente (+ cirugía si hay dos el mismo día) */
@@ -96,6 +110,8 @@ export type Row = Fields & {
   warning?: string
   /** Número de fila de la agenda de donde salió */
   line?: number
+  /** Las fuentes del cruce (las filas agregadas a mano no tienen) */
+  origin?: Origin
   /** Lo que salió del cruce, antes de poner encima lo escrito a mano */
   src?: Fields
   /** Campos editados a mano que la agenda/el calendar cambiaron después: hay que confirmar */

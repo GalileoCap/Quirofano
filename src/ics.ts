@@ -96,7 +96,7 @@ export function classifyEvents(raw: RawEvent[]): { events: CalEvent[]; problems:
     const parts = e.title.split('/').map((p) => p.trim())
     const suspension = SUSPENSION.test(e.calendar)
     const info = parseDescription(e.description)
-    const base = { date: e.date, title: e.title, calendar: e.calendar, kind: suspension ? ('suspension' as const) : ('surgery' as const) }
+    const base = { date: e.date, title: e.title, description: e.description, calendar: e.calendar, kind: suspension ? ('suspension' as const) : ('surgery' as const) }
     const details = { eye: info.eye, diopters: info.diopters, hc: info.hc, phone: info.phone }
     if (parts.length >= 3 && parts[0] && parts[1]) {
       events.push({ ...base, ...details, surgery: parts[0], name: parts[1], surgeon: clean(parts[2]), assistant: clean(parts[3]) })
@@ -110,4 +110,16 @@ export function classifyEvents(raw: RawEvent[]): { events: CalEvent[]; problems:
     }
   }
   return { events, problems }
+}
+
+export type EventStatus = { status: 'surgery' | 'suspension' | 'problem' | 'ignored'; reason: string }
+
+/** Qué hizo la app con un evento del .ics y por qué (para poder ver también lo que se ignora). */
+export function describeEvent(e: RawEvent): EventStatus {
+  if (e.cancelled) return { status: 'ignored', reason: 'Cancelado en el calendario' }
+  if (IGNORED_CALENDAR.test(e.calendar)) return { status: 'ignored', reason: 'Calendario que no es de cirugías' }
+  const { events, problems } = classifyEvents([e])
+  if (events[0]) return { status: events[0].kind, reason: events[0].kind === 'suspension' ? 'Suspensión' : 'Cirugía' }
+  if (problems[0]) return { status: 'problem', reason: 'Parece una cirugía pero no tiene el formato CIRUGÍA / PACIENTE / CIRUJANO' }
+  return { status: 'ignored', reason: 'No parece una cirugía' }
 }

@@ -1,6 +1,6 @@
 import { normName } from './agenda.ts'
 import { addDaysTo } from './dates.ts'
-import { FIELDS, type AgendaRow, type CalEvent, type CalProblem, type Excluded, type Field, type Row } from './types.ts'
+import { FIELDS, type AgendaRow, type CalEvent, type CalProblem, type Excluded, type Field, type Origin, type Row } from './types.ts'
 
 export type MergeInput = {
   agenda: AgendaRow[]
@@ -67,6 +67,17 @@ function fromAgenda(a: AgendaRow, date: string, key: string, source: Row['source
   }
 }
 
+/**
+ * Deja en la fila de dónde salió: la fila de la agenda y/o el evento, y qué fuente puso cada campo.
+ * Si los dos tienen el mismo valor se atribuye a la agenda, que es la que manda en el cruce.
+ */
+function withOrigin(row: Row, agenda?: AgendaRow, event?: CalEvent, by?: Origin['by']): Row {
+  const fromA = agenda ? fromAgenda(agenda, row.date, row.key, 'agenda') : null
+  const fields: Origin['fields'] = {}
+  for (const f of FIELDS) if (row[f]) fields[f] = fromA?.[f] === row[f] ? 'agenda' : 'calendar'
+  return { ...row, origin: { agenda, event, by, fields } }
+}
+
 /** HC sin espacios ni separadores raros: '52017 / 00' y '52017:00' son la misma. */
 export const normHc = (s: string) => s.toUpperCase().replace(/\s+/g, '').replace(/[:-]/g, '/')
 
@@ -74,7 +85,7 @@ const fmtDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
 /** Cirugías de la agenda más probables para un evento del calendar, de mejor a peor. */
 function candidates(e: CalEvent, agenda: AgendaRow[], used: Set<AgendaRow>) {
-  const out: { row: AgendaRow; score: number }[] = []
+  const out: { row: AgendaRow; score: number; byHc: boolean }[] = []
   for (const row of agenda) {
     if (used.has(row)) continue
     // la HC identifica a la persona mejor que el nombre (que se escribe de mil maneras)
@@ -85,7 +96,7 @@ function candidates(e: CalEvent, agenda: AgendaRow[], used: Set<AgendaRow>) {
     // un nombre suelto ("GOMEZ") solo alcanza si la fecha o la HC también coinciden
     if (!sameHc && m === 1 && tokens(e.name).length < 2 && !sameDate) continue
     const score = (sameHc ? 30 : 0) + m * 10 + (sameDate ? 5 : 0) + (normName(row.surgery) === normName(e.surgery) ? 1 : 0)
-    out.push({ row, score })
+    out.push({ row, score, byHc: sameHc })
   }
   // a igual puntaje, la carga más reciente (es la que corrige a las anteriores)
   return out.sort((x, y) => y.score - x.score || (y.row.stamp ?? '').localeCompare(x.row.stamp ?? '') || y.row.line - x.row.line)
@@ -126,11 +137,11 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     const hit = candidates(s, agenda, new Set()).find((c) => c.row.date === s.date)
     if (hit) {
       suspendedRows.add(hit.row)
-      excluded.push({ row: fromAgenda(hit.row, s.date, uniqueKey(s.date, hit.row), 'agenda'), reason: 'suspended' })
+      excluded.push({ row: withOrigin(fromAgenda(hit.row, s.date, uniqueKey(s.date, hit.row), 'agenda'), hit.row, s), reason: 'suspended' })
     } else {
       const row = emptyRow(s.date, uniqueKey(s.date, { hc: s.hc, name: s.name }), 'calendar')
       Object.assign(row, { name: s.name, surgery: s.surgery, surgeon: s.surgeon, assistant: s.assistant, hc: s.hc, eye: s.eye })
-      excluded.push({ row, reason: 'suspended' })
+      excluded.push({ row: withOrigin(row, undefined, s), reason: 'suspended' })
     }
   }
 
@@ -153,7 +164,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
       Object.assign(row, { name: e.name, surgery: e.surgery, surgeon: e.surgeon, assistant: e.assistant })
       Object.assign(row, { eye: e.eye, diopters: e.diopters, hc: e.hc, phone: e.phone })
       row.warning = 'Está en el calendar pero no encontré al paciente en la agenda: completá los datos.'
-      rows.push(row)
+      rows.push(withOrigin(row, undefined, e))
       continue
     }
     const a = best.row
@@ -178,7 +189,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     if (normName(e.surgery) && normName(a.surgery) && normName(e.surgery) !== normName(a.surgery))
       notes.push(`El calendar dice "${e.surgery}" y la agenda "${a.surgery}".`)
     if (notes.length) row.warning = notes.join(' ')
-    rows.push(row)
+    rows.push(withOrigin(row, a, e, best.byHc ? 'hc' : 'name'))
   }
 
   // Lo que está en la agenda con fecha de la semana pero sin evento en el calendar
@@ -191,7 +202,7 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     seen.set(dup, a)
   }
   for (const a of seen.values()) {
-    const row = fromAgenda(a, a.date!, uniqueKey(a.date!, a), 'agenda')
+    const row = withOrigin(fromAgenda(a, a.date!, uniqueKey(a.date!, a), 'agenda'), a)
     if (calendarCovers) excluded.push({ row, reason: 'not-in-calendar' })
     else rows.push(row)
   }

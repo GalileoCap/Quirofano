@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import ChecklistView from './components/ChecklistView.tsx'
 import DataView from './components/DataView.tsx'
+import OriginalsView from './components/OriginalsView.tsx'
 import Icon, { type IconName } from './components/Icon.tsx'
 
-type Tab = 'checklist' | 'datos'
+type Tab = 'checklist' | 'originales' | 'datos'
 
 const TABS: { key: Tab; label: string; icon: IconName }[] = [
   { key: 'checklist', label: 'Checklist', icon: 'check' },
+  { key: 'originales', label: 'Originales', icon: 'database' },
   { key: 'datos', label: 'Datos', icon: 'settings' },
 ]
 
@@ -28,7 +30,7 @@ export default function App() {
           ))}
         </div>
       </header>
-      {tab === 'checklist' ? <ChecklistView /> : <DataView />}
+      {tab === 'checklist' ? <ChecklistView /> : tab === 'originales' ? <OriginalsView /> : <DataView />}
       <nav className="dock dock-md sm:hidden" role="tablist">
         {TABS.map((t) => (
           <button

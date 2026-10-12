@@ -35,6 +35,30 @@ export const normName = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+type Column = { label: string; read: (a: AgendaRow) => string; date?: boolean }
+
+/** Las 18 columnas de la hoja con su nombre real y cómo se lee cada una (la cabecera del CSV está corrida). */
+export const AGENDA_COLUMNS: Column[] = [
+  { label: 'Marca temporal', read: (a) => a.stamp ?? '', date: true },
+  { label: 'Fecha de la cirugía', read: (a) => a.date ?? '', date: true },
+  { label: 'Paciente', read: (a) => a.name },
+  { label: 'HC', read: (a) => a.hc },
+  { label: 'Duración', read: (a) => a.duration?.toString() ?? '' },
+  { label: 'Cirugía', read: (a) => a.surgery },
+  { label: 'Cirujano', read: (a) => a.surgeon },
+  { label: 'Ayudante', read: (a) => a.assistant },
+  { label: 'Ojo', read: (a) => a.eye },
+  { label: 'Contacto', read: (a) => a.contact },
+  { label: 'Teléfono', read: (a) => a.phone },
+  { label: 'Insumo', read: (a) => a.supplies },
+  { label: 'Dioptrías', read: (a) => a.diopters },
+  { label: 'Anestesia', read: (a) => a.anesthesia },
+  { label: 'Pedido B', read: (a) => a.pedidoB },
+  { label: 'Observaciones', read: (a) => a.notes },
+  { label: 'Edad', read: (a) => a.age },
+  { label: 'DNI', read: (a) => a.dni },
+]
+
 /**
  * Columnas de la hoja (la cabecera real está corrida: la celda sin título es el ojo y "JERARQUIA" es quién contesta):
  * 0 marca temporal · 1 fecha de la cirugía · 2 paciente · 3 HC · 4 duración · 5 cirugía · 6 cirujano · 7 ayudante ·
@@ -66,6 +90,7 @@ export function parseAgenda(text: string): AgendaRow[] {
       notes: clean(r[15]),
       age: clean(r[16]),
       dni: clean(r[17]),
+      cells: r,
     })
   }
   return out

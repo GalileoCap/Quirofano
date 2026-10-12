@@ -14,6 +14,12 @@ function Check({ row, field, label, className = '' }: { row: Row; field: Field; 
   )
 }
 
+/** De qué fuentes salió la fila, como texto corto: "Agenda L214 + Calendar". */
+const originLabel = (row: Row) => {
+  const { agenda, event } = row.origin ?? {}
+  return [agenda && `Agenda L${agenda.line}`, event && 'Calendar'].filter(Boolean).join(' + ') || 'A mano'
+}
+
 const Detail = ({ label, value }: { label: string; value: string }) =>
   value ? (
     <span className="whitespace-nowrap">
@@ -31,6 +37,7 @@ export default function RowCard({
   onRemove,
   onKeepMine,
   onUseSource,
+  onSource,
 }: {
   row: Row
   first: boolean
@@ -40,6 +47,7 @@ export default function RowCard({
   onRemove: () => void
   onKeepMine: () => void
   onUseSource: () => void
+  onSource: () => void
 }) {
   return (
     <li className="card card-border bg-base-100">
@@ -74,6 +82,9 @@ export default function RowCard({
               <Detail label="Tel." value={[row.contact, row.phone].filter(Boolean).join(' ')} />
               <Detail label="DNI" value={row.dni} />
             </div>
+            <button className="badge badge-sm badge-ghost mt-1 gap-1" title="Ver de dónde salió cada dato y los datos originales" onClick={onSource}>
+              <Icon name="fileText" className="size-3" /> {originLabel(row)}
+            </button>
             {row.notes && <p className="mt-0.5 text-xs italic text-base-content/70">{row.notes}</p>}
             {row.warning && (
               <p className="mt-1 flex items-start gap-1 text-xs text-warning-content">

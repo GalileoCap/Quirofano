@@ -10,6 +10,7 @@ import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
 import RowDialog from './RowDialog.tsx'
+import SourceDialog from './SourceDialog.tsx'
 import { NewsCard, Orphans } from './Review.tsx'
 
 /** La semana que se arma por defecto: la actual, y desde el sábado la que viene. */
@@ -28,6 +29,7 @@ const REASON: Record<Excluded['reason'], string> = {
 export default function ChecklistView() {
   const [monday, setMonday] = useState(defaultMonday)
   const [editing, setEditing] = useState<string | null>(null)
+  const [sourcing, setSourcing] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
@@ -43,6 +45,7 @@ export default function ChecklistView() {
   )
   const conflicted = rows.filter((r) => r.conflicts)
   const editingRow = rows.find((r) => r.key === editing)
+  const sourcingRow = rows.find((r) => r.key === sourcing) ?? excluded.find((x) => x.row.key === sourcing)?.row
 
   const say = (msg: string) => {
     setToast(msg)
@@ -162,6 +165,7 @@ export default function ChecklistView() {
                   onRemove={() => remove(r)}
                   onKeepMine={() => keepMine(r.key, r.conflicts ?? [])}
                   onUseSource={() => useSource(r.key, r.conflicts ?? [])}
+                  onSource={() => setSourcing(r.key)}
                 />
               ))}
             </ul>
@@ -189,6 +193,9 @@ export default function ChecklistView() {
                     <span className="font-semibold">{row.name}</span> · {row.surgery}
                   </span>
                   <span className="badge badge-sm badge-ghost hidden whitespace-nowrap sm:inline-flex">{REASON[reason]}</span>
+                  <button className="btn btn-ghost btn-xs btn-square" title="Ver el origen" aria-label="Ver el origen" onClick={() => setSourcing(row.key)}>
+                    <Icon name="fileText" />
+                  </button>
                   <button className="btn btn-xs" onClick={() => setIncluded(row, true)}>
                     Incluir
                   </button>
@@ -199,6 +206,7 @@ export default function ChecklistView() {
         </section>
       )}
 
+      {sourcingRow && <SourceDialog row={sourcingRow} onClose={() => setSourcing(null)} />}
       {editingRow && <RowDialog row={editingRow} onClose={() => setEditing(null)} />}
       {toast && (
         <div className="toast toast-center toast-bottom mb-16 sm:mb-4">
