@@ -56,6 +56,18 @@ Nada del checklist es una caja negra. Cada fila del cruce lleva `origin` (`src/t
 - **Pestaña "Originales"** (`OriginalsView.tsx`): toda la agenda (por línea del CSV) y todos los eventos guardados del calendar, con buscador, y mostrando también lo que se ignora (cancelado, calendario descartado, evento personal) y por qué (`describeEvent`).
 - Las celdas crudas (`AgendaRow.cells`) y la descripción (`CalEvent.description`) no se guardan aparte: salen de reprocesar el CSV y los eventos guardados.
 
+## Vista resumen de la semana
+
+El checklist tiene dos vistas (`ChecklistView.tsx`): **Resumen** (por defecto, `OverviewView.tsx`) y **Detalle** (las tarjetas de siempre). El resumen es una línea por cirugía, por día, para ver de lejos qué difiere o qué falta. Tocar una línea abre la tarjeta completa (con los botones de confirmar); las de "Sin incluir" aparecen en su día, atenuadas, con "Incluir". Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un filtro con su cuenta:
+
+- **Por confirmar**: lo escrito a mano que difiere de las fuentes y nadie confirmó (`conflicts`).
+- **Agenda ≠ calendar**: campos (o la fecha) en que las dos fuentes dicen cosas distintas, filas que están en una sola fuente, y las de "Sin incluir" por no estar en el calendar o estar suspendidas.
+- **Editadas**: campos en que el checklist difiere de lo que salió del cruce (confirmados o no), filas agregadas a mano y las sacadas a mano.
+- **Faltan datos**: falta alguno de Paciente, HC, Cirugía, Cirujano, Ojo, Duración (`REQUIRED_FIELDS`). Ayudante, anestesia, dioptrías y teléfono pueden faltar sin aviso.
+- **Sin completar**: Horario, Prequi o HC (check) todavía vacíos (`PENDING_FIELDS`); son columnas a mano, nunca se completan solas (regla 1).
+
+En la fila, la celda marcada en amarillo es un campo por confirmar, en rojo uno en que las fuentes no coinciden, en cursiva con subrayado punteado uno escrito a mano, y «falta» uno vacío que debería tener dato.
+
 ## Lo que no se puede automatizar
 
 El checklist que arma la residente a mano no sale ni del calendar ni de la agenda por fecha: tiene cirugías movidas, sumadas y bajadas por conversaciones que no quedaron escritas en ninguna de las dos (en la semana del 12/10, de 34 filas, 10 no estaban en el calendar y 5 del calendar no estaban en el checklist). Por eso el cruce propone y avisa, y la persona incluye/saca/edita; no hay que intentar "adivinar" más.

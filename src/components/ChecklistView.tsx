@@ -11,6 +11,7 @@ import Icon from './Icon.tsx'
 import RowCard from './RowCard.tsx'
 import RowDialog from './RowDialog.tsx'
 import SourceDialog from './SourceDialog.tsx'
+import OverviewView from './OverviewView.tsx'
 import { NewsCard, Orphans } from './Review.tsx'
 
 /** La semana que se arma por defecto: la actual, y desde el sábado la que viene. */
@@ -31,6 +32,7 @@ export default function ChecklistView() {
   const [editing, setEditing] = useState<string | null>(null)
   const [sourcing, setSourcing] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [mode, setMode] = useState<'resumen' | 'detalle'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
   const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, useSource, news, setNews } = useStore()
@@ -94,6 +96,13 @@ export default function ChecklistView() {
           <button className="btn btn-sm btn-ghost" onClick={() => setMonday(defaultMonday())}>
             Hoy
           </button>
+          <div role="group" aria-label="Vista" className="join w-full sm:w-auto">
+            {(['resumen', 'detalle'] as const).map((m) => (
+              <button key={m} className={`btn btn-sm join-item flex-1 sm:flex-none ${mode === m ? 'btn-primary' : ''}`} aria-pressed={mode === m} onClick={() => setMode(m)}>
+                {m === 'resumen' ? 'Resumen' : 'Detalle'}
+              </button>
+            ))}
+          </div>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
             <button className="btn btn-sm btn-primary flex-1 sm:flex-none" disabled={!rows.length} onClick={copy}>
               <Icon name="copy" /> Copiar<span className="hidden sm:inline"> para la planilla</span>
@@ -134,13 +143,17 @@ export default function ChecklistView() {
       {orphans.length > 0 && <Orphans orphans={orphans} />}
       {news && news.items.length > 0 && <NewsCard news={news} onClose={() => setNews(null)} />}
 
-      {!days.length && (
+      {mode === 'resumen' && (
+        <OverviewView monday={monday} rows={rows} excluded={excluded} onEdit={setEditing} onRemove={remove} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
+      )}
+
+      {mode === 'detalle' && !days.length && (
         <p className="py-8 text-center text-base-content/60">
           No hay cirugías esta semana{excluded.length ? ' (hay algunas sin incluir más abajo)' : ''}.
         </p>
       )}
 
-      {days.map(({ date, rows: dayRows }) => {
+      {mode === 'detalle' && days.map(({ date, rows: dayRows }) => {
         const keys = dayRows.map((r) => r.key)
         return (
           <section key={date} className="flex flex-col gap-2">
@@ -173,7 +186,7 @@ export default function ChecklistView() {
         )
       })}
 
-      {excluded.length > 0 && (
+      {mode === 'detalle' && excluded.length > 0 && (
         <section className="card card-border bg-base-100">
           <div className="card-body gap-2 p-3">
             <div className="flex items-center gap-2">
