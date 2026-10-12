@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { sheetCsv, sheetTsv } from '../checklist.ts'
+import { sheetCsv, sheetTsv, weekRange } from '../checklist.ts'
 import { addDaysTo, dayOfWeek, isoOf, mondayOf } from '../dates.ts'
 import { DAY_LABELS, shortDate, weekLabel } from '../format.ts'
 import { useChecklist, useOrphans } from '../hooks.ts'
@@ -35,7 +35,9 @@ export default function ChecklistView() {
   const [mode, setMode] = useState<'resumen' | 'detalle'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
-  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, useSource, news, setNews } = useStore()
+  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, useSource, news, setNews, ranges, setRange } = useStore()
+  const range = weekRange(monday, ranges)
+  const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
   const orphans = useOrphans()
 
   const days = useMemo(
@@ -65,8 +67,8 @@ export default function ChecklistView() {
 
   const download = () => {
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob(['﻿' + sheetCsv(rows)], { type: 'text/csv;charset=utf-8' }))
-    a.download = `checklist-${monday}_${addDaysTo(monday, 6)}.csv`
+    a.href = URL.createObjectURL(new Blob([sheetCsv(rows)], { type: 'text/csv;charset=utf-8' }))
+    a.download = `checklist-${range.from}_${range.to}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -102,6 +104,35 @@ export default function ChecklistView() {
                 {m === 'resumen' ? 'Resumen' : 'Detalle'}
               </button>
             ))}
+          </div>
+          <div className="flex w-full items-center gap-2 text-sm" role="group" aria-label="Días que se arman">
+            <span className="text-base-content/60">Días</span>
+            {(['from', 'to'] as const).map((bound) => (
+              <label key={bound} className="flex items-center gap-1">
+                <span className="sr-only">{bound === 'from' ? 'Desde' : 'Hasta'}</span>
+                {bound === 'to' && <span className="text-base-content/60">a</span>}
+                <select
+                  className="select select-sm w-auto"
+                  value={range[bound]}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    // si el extremo que se mueve pasa al otro, el otro lo acompaña
+                    setRange(monday, bound === 'from' ? { from: v, to: v > range.to ? v : range.to } : { from: v < range.from ? v : range.from, to: v })
+                  }}
+                >
+                  {weekDays(monday).map((d) => (
+                    <option key={d} value={d}>
+                      {DAY_LABELS[dayOfWeek(d)]} {shortDate(d)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+            {!fullWeek && (
+              <button className="btn btn-sm btn-ghost" onClick={() => setRange(monday, null)}>
+                Semana entera
+              </button>
+            )}
           </div>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
             <button className="btn btn-sm btn-primary flex-1 sm:flex-none" disabled={!rows.length} onClick={copy}>

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { parseAgenda } from './agenda.ts'
-import { applyEdits, sortRows } from './checklist.ts'
+import { applyEdits, sortRows, weekRange } from './checklist.ts'
 import { addDaysTo, isoOf, mondayOf } from './dates.ts'
 import { classifyEvents } from './ics.ts'
 import { mergeChecklist } from './merge.ts'
@@ -44,16 +44,16 @@ export type Checklist = {
   hasAgenda: boolean
 }
 
-/** El checklist de la semana que empieza en `monday`: cruce agenda + calendar, con lo editado a mano encima. */
+/** El checklist de la semana que empieza en `monday` (solo los días del rango elegido): cruce agenda + calendar, con lo editado a mano encima. */
 export function useChecklist(monday: string): Checklist {
   const agenda = useAgenda()
   const { events, problems } = useCalendarEvents()
-  const { edits, bases, order, included, manualRows } = useStore()
-  const sunday = addDaysTo(monday, 6)
+  const { edits, bases, order, included, manualRows, ranges } = useStore()
+  const { from, to } = weekRange(monday, ranges)
 
   const merged = useMemo(
-    () => mergeChecklist({ agenda, events, problems, from: monday, to: sunday }),
-    [agenda, events, problems, monday, sunday],
+    () => mergeChecklist({ agenda, events, problems, from, to }),
+    [agenda, events, problems, from, to],
   )
 
   return useMemo(() => {
@@ -68,10 +68,10 @@ export function useChecklist(monday: string): Checklist {
         kept.push({ ...x.row, warning: x.row.warning ?? (x.reason === 'not-in-calendar' ? 'La agenda la tiene este día, pero no está en el calendar.' : undefined) })
       else excluded.push(x)
     }
-    for (const r of manualRows) if (r.date >= monday && r.date <= sunday) kept.push(r)
+    for (const r of manualRows) if (r.date >= from && r.date <= to) kept.push(r)
     const rows = sortRows(applyEdits(kept, edits, bases), order)
     return { rows, excluded, warnings: merged.warnings, hasAgenda: agenda.length > 0 }
-  }, [merged, edits, bases, order, included, manualRows, monday, sunday, agenda.length])
+  }, [merged, edits, bases, order, included, manualRows, from, to, agenda.length])
 }
 
 /**

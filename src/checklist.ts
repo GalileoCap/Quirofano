@@ -1,10 +1,20 @@
 import { toCsv, toTsv } from './csv.ts'
-import { dayOfWeek } from './dates.ts'
+import { addDaysTo, dayOfWeek } from './dates.ts'
 import { fieldsOf, resolveEdit } from './review.ts'
 import type { Field, Row } from './types.ts'
 
 /** Lo que el usuario cambió a mano, por fila (clave de `Row.key`) y por campo. */
 export type Edits = Record<string, Partial<Record<Field, string>>>
+
+/** Desde qué día hasta cuál se arma el checklist de una semana (inclusive). */
+export type DayRange = { from: string; to: string }
+
+/** El rango de la semana que empieza en `monday`: el guardado si es válido y cae dentro de la semana, y si no la semana entera. */
+export function weekRange(monday: string, saved: Record<string, DayRange> = {}): DayRange {
+  const full = { from: monday, to: addDaysTo(monday, 6) }
+  const r = saved[monday]
+  return r && r.from >= full.from && r.to <= full.to && r.from <= r.to ? r : full
+}
 
 export const DAY_NAMES = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
 export const dayName = (date: string) => DAY_NAMES[dayOfWeek(date)]

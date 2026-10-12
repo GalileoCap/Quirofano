@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import type { Edits } from './checklist.ts'
+import type { DayRange, Edits } from './checklist.ts'
 import type { RawEvent } from './ics.ts'
 import { snapOf, type Novelty, type Orphan } from './review.ts'
 import type { Conflict, Field, Row, Snap } from './types.ts'
@@ -21,6 +21,8 @@ export type UserData = {
   included: Record<string, boolean>
   /** Pacientes agregados a mano */
   manualRows: Row[]
+  /** Rango de días de cada semana (clave: su lunes). Sin entrada, la semana entera. */
+  ranges: Record<string, DayRange>
 }
 
 /** Qué cambió en la última carga de agenda/calendar. */
@@ -54,6 +56,8 @@ type Actions = {
   /** Cambia de lugar la fila `key` dentro del día (dir −1 sube, +1 baja). `keys` es el orden actual de ese día. */
   moveRow: (date: string, keys: string[], key: string, dir: -1 | 1) => void
   setIncluded: (row: Row, value: boolean) => void
+  /** Arma el checklist de la semana de `monday` solo entre esos días; `null` vuelve a la semana entera. */
+  setRange: (monday: string, range: DayRange | null) => void
   addManualRow: (date: string) => string
   removeManualRow: (key: string) => void
   importUserData: (data: Partial<UserData>) => void
@@ -61,7 +65,7 @@ type Actions = {
   clearUserData: () => void
 }
 
-const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [] }
+const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], ranges: {} }
 
 const without = <T,>(o: Record<string, T>, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key))
 
@@ -183,6 +187,7 @@ export const useStore = create<UserData & Actions>()(
         set((s) => ({ manualRows: [...s.manualRows, row] }))
         return key
       },
+      setRange: (monday, range) => set((s) => ({ ranges: range ? { ...s.ranges, [monday]: range } : without(s.ranges, monday) })),
       removeManualRow: (key) => set((s) => ({ manualRows: s.manualRows.filter((r) => r.key !== key) })),
       importUserData: (data) => set({ ...emptyUser, ...data }),
       clearUserData: () => set({ ...emptyUser }),

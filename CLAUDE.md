@@ -37,7 +37,8 @@ Antes de dar algo por terminado: `npx tsc --noEmit`, `npm test` y mirarlo en el 
 - **Cruce** (`src/merge.ts`): el calendar manda sobre qué cirugías hay cada día; la agenda aporta los datos. Se cruza por **HC** (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar queda en "Sin incluir"; sin calendar para esas fechas se usa solo la fecha de la agenda. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
 - **A mano** (`src/store.ts`): PREQUI, HC, notas, quirófano y quiró día, más cualquier corrección de campo, orden, filas sacadas/agregadas. Se guardan por clave de fila (`fecha|HC`), así sobreviven a volver a cargar la agenda.
 - **Horario**: columna que se escribe a mano (regla 1); el cruce no la completa.
-- **Exportación**: mismo formato que la planilla "Checklist" (21 columnas, días del último al primero, encabezado `PREQUI`/`HC` solo en el primer día).
+- **Exportación**: mismo formato que la planilla "Checklist" (21 columnas, días del último al primero, encabezado `PREQUI`/`HC` solo en el primer día). El CSV sale sin marca BOM, con saltos `\r\n` y sin salto final, igual que el que baja Google Sheets (`tests/export.test.ts` fija esa forma).
+- **Rango de días** (`weekRange` en `src/checklist.ts`, selectores "Días" en `ChecklistView.tsx`): cada semana se arma por defecto de lunes a domingo; se puede acotar (ej. lunes a viernes) y queda guardado por semana (`ranges` en `useStore`, también en el respaldo de Datos). Lo que cae fuera del rango no entra al checklist ni a "Sin incluir", y el CSV se llama con las fechas del rango.
 
 ## Volver a cargar la agenda/el calendar durante la semana
 
