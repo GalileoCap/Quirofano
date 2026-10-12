@@ -92,6 +92,7 @@ Las marcas salen de `rowFlags` (`src/overview.ts`) y cada una es también un fil
   - Suspendida en el calendar.
   - Si es la misma persona (misma HC, o el mismo nombre si falta) y una está de un lado en un día y del otro lado en otro, la marca dice el otro día ("las fuentes la tienen el 16/10", `elsewhereDates`). Dos cirugías reales de una persona en días distintos no cuentan como movidas.
 
+- Reconocer: lo que difiere de las fuentes (fecha o presencia y campos en que agenda y calendar no coinciden) se puede marcar como reconocido con "Reconocer" (Resumen, Detalle, "Sin incluir" y el modal; "Volver a avisar" lo deshace). La fila deja de avisar y de contar en esos filtros, y pasa a "Reconocidas". Se guarda en `acks` (clave de fila → `Flags.signature`, una huella de lo que dicen la agenda y el calendar de esa cirugía, sin el número de línea ni lo escrito a mano). Si en una carga nueva cambia algo de lo que dicen las fuentes, la huella ya no coincide y la advertencia vuelve; si no cambió, sigue reconocida. También silencia el aviso del cruce de esa fila, porque es la misma diferencia. Lo por confirmar tiene sus propios botones y lo editado no se reconoce.
 - Por confirmar: lo escrito a mano que difiere de las fuentes y nadie confirmó (`conflicts`).
 - Agenda ≠ calendar: campos en que las dos fuentes dicen cosas distintas (la fecha es de presencia).
 - Editadas: campos en que el checklist difiere de lo que salió del cruce (confirmados o no).

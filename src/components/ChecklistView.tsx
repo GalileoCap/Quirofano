@@ -35,12 +35,12 @@ export default function ChecklistView() {
   const [mode, setMode] = useState<'resumen' | 'detalle' | 'calendario'>('resumen')
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings } = useChecklist(monday)
-  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, takeSource, news, setNews, ranges, setRange } = useStore()
+  const { moveRow, setIncluded, addManualRow, removeManualRow, keepMine, takeSource, news, setNews, ranges, setRange, acks, acknowledge, unacknowledge } = useStore()
   const range = weekRange(monday, ranges)
   const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
   const orphans = useOrphans()
 
-  const items = useMemo(() => itemsOf(rows, excluded), [rows, excluded])
+  const items = useMemo(() => itemsOf(rows, excluded, acks), [rows, excluded, acks])
   const flagsOf = (key: string) => items.find((i) => i.row.key === key)?.flags
   const days = useMemo(
     () =>
@@ -76,6 +76,12 @@ export default function ChecklistView() {
     a.download = `checklist-${range.from}_${range.to}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
+  }
+
+  /** Reconoce las diferencias de la fila, si tiene alguna sin reconocer. */
+  const ack = (key: string) => {
+    const signature = flagsOf(key)?.signature
+    if (signature) acknowledge(key, signature)
   }
 
   const remove = (r: Row) => (r.source === 'manual' ? removeManualRow(r.key) : setIncluded(r, false))
@@ -182,7 +188,7 @@ export default function ChecklistView() {
       <FilterBar items={items} filter={filter} onFilter={setFilter} />
 
       {mode === 'resumen' && (
-        <OverviewView monday={monday} rows={rows} items={items} filter={filter} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} />
+        <OverviewView monday={monday} rows={rows} items={items} filter={filter} onView={setViewing} onEdit={setEditing} onSource={setSourcing} onInclude={(r) => setIncluded(r, true)} onAck={ack} />
       )}
 
       {mode === 'calendario' && (
@@ -223,6 +229,8 @@ export default function ChecklistView() {
                   onKeepMine={() => keepMine(r.key, r.conflicts ?? [])}
                   onUseSource={() => takeSource(r.key, r.conflicts ?? [])}
                   onSource={() => setSourcing(r.key)}
+                  acked={!!flagsOf(r.key)?.acked}
+                  onAck={flagsOf(r.key)?.signature && !flagsOf(r.key)?.acked ? () => ack(r.key) : undefined}
                 />
               ))}
             </ul>
@@ -252,6 +260,11 @@ export default function ChecklistView() {
                   <span className="badge badge-sm badge-error hidden h-auto whitespace-normal py-0.5 text-left font-bold sm:inline-flex">
                     {flagNotes(flags).find((n) => n.kind === 'presence')?.text}
                   </span>
+                  {flags.signature && !flags.acked && (
+                    <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que cambie en la agenda o el calendar" onClick={() => ack(row.key)}>
+                      Reconocer
+                    </button>
+                  )}
                   <button className="btn btn-ghost btn-xs btn-square" title="Ver el origen" aria-label="Ver el origen" onClick={() => setSourcing(row.key)}>
                     <Icon name="fileText" />
                   </button>
@@ -275,6 +288,8 @@ export default function ChecklistView() {
             setEditing(viewingRow.key)
           }}
           onSource={() => setSourcing(viewingRow.key)}
+          onAck={() => ack(viewingRow.key)}
+          onUnack={() => unacknowledge(viewingRow.key)}
           onRemove={() => {
             setViewing(null)
             remove(viewingRow)

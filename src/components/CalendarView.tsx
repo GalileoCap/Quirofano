@@ -24,7 +24,7 @@ const renderEvent = (arg: EventContentArg) => {
   return (
     <div className="q-event-body" title={notes || undefined}>
       <div className="font-bold">
-        {(flags.confirm.length > 0 || row.warning) && <Icon name="warning" className="float-right ml-1 size-3.5" />}
+        {(flags.confirm.length > 0 || flags.warning) && <Icon name="warning" className="float-right ml-1 size-3.5" />}
         {time && <span className="mr-1 whitespace-nowrap tabular-nums">{time}</span>}
         {row.name || 'Sin nombre'}
       </div>

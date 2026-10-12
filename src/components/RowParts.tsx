@@ -28,7 +28,12 @@ export function Chips({ flags, row }: { flags: Flags; row: Row }) {
           {n.text}
         </span>
       ))}
-      {row.warning && <Icon name="warning" className="size-4 text-warning" aria-label={row.warning} />}
+      {flags.acked && (
+        <span className="badge badge-sm badge-ghost" title="Reconocida: avisa de nuevo si cambia en la agenda o el calendar">
+          Reconocida
+        </span>
+      )}
+      {flags.warning && <Icon name="warning" className="size-4 text-warning" aria-label={row.warning} />}
     </span>
   )
 }

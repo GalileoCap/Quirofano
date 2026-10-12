@@ -35,6 +35,7 @@ export default function OverviewView({
   onEdit,
   onSource,
   onInclude,
+  onAck,
 }: {
   monday: string
   rows: Row[]
@@ -45,6 +46,7 @@ export default function OverviewView({
   onEdit: (key: string) => void
   onSource: (key: string) => void
   onInclude: (row: Row) => void
+  onAck: (key: string) => void
 }) {
   const days = weekDays(monday)
     .map((date) => ({
@@ -105,6 +107,11 @@ export default function OverviewView({
                           <Manual row={row} field="prequi" label="Pq" />
                           <Manual row={row} field="hcCheck" label="HC" />
                         </span>
+                      )}
+                      {flags.signature && !flags.acked && (
+                        <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que cambie en la agenda o el calendar" onClick={() => onAck(row.key)}>
+                          Reconocer
+                        </button>
                       )}
                       {flags.excluded ? (
                         flags.excluded !== 'suspended' && (

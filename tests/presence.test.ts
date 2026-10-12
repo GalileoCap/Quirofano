@@ -288,7 +288,7 @@ test('con presencia y otras diferencias, la presencia va primero y las demás no
 // filtros
 
 test('hay un filtro nuevo de fecha o presencia, antes de los de siempre', () => {
-  assert.deepEqual([...FILTERS], ['all', 'presence', 'confirm', 'sources', 'edited', 'missing', 'pending'])
+  assert.deepEqual([...FILTERS], ['all', 'presence', 'confirm', 'sources', 'edited', 'acked', 'missing', 'pending'])
   assert.equal(FILTER_LABELS.presence, 'Fecha o presencia')
 })
 

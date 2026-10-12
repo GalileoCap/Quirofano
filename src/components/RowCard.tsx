@@ -33,6 +33,8 @@ export default function RowCard({
   onKeepMine,
   onUseSource,
   onSource,
+  onAck,
+  acked = false,
 }: {
   row: Row
   /** Diferencia de fecha o presencia (sobra, falta, otro día), si la hay */
@@ -45,6 +47,10 @@ export default function RowCard({
   onKeepMine: () => void
   onUseSource: () => void
   onSource: () => void
+  /** Reconocer las diferencias de la fila; solo si tiene alguna sin reconocer */
+  onAck?: () => void
+  /** Ya reconocida: el aviso del cruce no se muestra */
+  acked?: boolean
 }) {
   return (
     <li className={`card card-border bg-base-100 ${presence ? 'border-l-8 border-error bg-error/10' : ''}`}>
@@ -64,6 +70,11 @@ export default function RowCard({
               <span className="font-bold">{row.name || 'Sin nombre'}</span>
               <span className="text-xs text-base-content/60">{row.hc}</span>
               {presence && <span className="badge badge-sm badge-error h-auto whitespace-normal py-0.5 text-left font-bold">{presence}</span>}
+              {onAck && (
+                <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que cambie en la agenda o el calendar" onClick={onAck}>
+                  Reconocer
+                </button>
+              )}
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm">
               <span>{row.surgery || 'Sin cirugía'}</span>
@@ -82,7 +93,7 @@ export default function RowCard({
               <Icon name="fileText" className="size-3" /> {originLabel(row)}
             </button>
             {row.notes && <p className="mt-0.5 text-xs italic text-base-content/70">{row.notes}</p>}
-            {row.warning && (
+            {row.warning && !acked && (
               <p className="mt-1 flex items-start gap-1 text-xs text-warning-content">
                 <Icon name="warning" className="mt-px size-3.5 text-warning" />
                 <span>{row.warning}</span>

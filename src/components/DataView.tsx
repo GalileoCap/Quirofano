@@ -87,8 +87,8 @@ function DataCard() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const exportJson = () => {
-    const { edits, bases, snaps, order, included, manualRows, ranges } = store
-    const blob = new Blob([JSON.stringify({ edits, bases, snaps, order, included, manualRows, ranges }, null, 2)], { type: 'application/json' })
+    const { edits, bases, snaps, order, included, manualRows, ranges, acks } = store
+    const blob = new Blob([JSON.stringify({ edits, bases, snaps, order, included, manualRows, ranges, acks }, null, 2)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `quiro-${new Date().toISOString().slice(0, 10)}.json`

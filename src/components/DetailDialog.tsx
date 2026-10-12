@@ -1,6 +1,6 @@
 import { dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, FIELD_LABELS, longDate } from '../format.ts'
-import { REQUIRED_FIELDS, type Flags } from '../overview.ts'
+import { REQUIRED_FIELDS, ackedNotes, type Flags } from '../overview.ts'
 import { useStore } from '../store.ts'
 import type { Field, Row } from '../types.ts'
 import Icon from './Icon.tsx'
@@ -44,6 +44,8 @@ export default function DetailDialog({
   dayRows,
   onEdit,
   onSource,
+  onAck,
+  onUnack,
   onRemove,
   onClose,
 }: {
@@ -53,6 +55,8 @@ export default function DetailDialog({
   dayRows: Row[]
   onEdit: () => void
   onSource: () => void
+  onAck: () => void
+  onUnack: () => void
   onRemove: () => void
   onClose: () => void
 }) {
@@ -85,7 +89,28 @@ export default function DetailDialog({
         <div className="mt-2 empty:hidden">
           <Chips flags={flags} row={row} />
         </div>
-        {row.warning && (
+        {flags.signature && !flags.acked && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <button className="btn btn-xs" onClick={onAck}>
+              <Icon name="check" className="size-3.5" /> Reconocer
+            </button>
+            <span className="text-base-content/60">Deja de avisar mientras la agenda y el calendar sigan diciendo lo mismo.</span>
+          </div>
+        )}
+        {flags.acked && (
+          <div className="mt-2 rounded-box bg-base-200/60 p-2 text-xs">
+            <p className="font-semibold">Reconocida: no avisa mientras las fuentes no cambien</p>
+            <ul className="mt-0.5 text-base-content/70">
+              {ackedNotes(flags).map((n) => (
+                <li key={n.kind + n.text}>{n.text}</li>
+              ))}
+            </ul>
+            <button className="btn btn-xs mt-1.5" onClick={onUnack}>
+              Volver a avisar
+            </button>
+          </div>
+        )}
+        {flags.warning && (
           <p className="mt-2 flex items-start gap-1 text-xs">
             <Icon name="warning" className="mt-px size-3.5 shrink-0 text-warning" />
             <span>{row.warning}</span>

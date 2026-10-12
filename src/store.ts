@@ -23,6 +23,8 @@ export type UserData = {
   manualRows: Row[]
   /** Rango de días de cada semana (clave: su lunes). Sin entrada, la semana entera. */
   ranges: Record<string, DayRange>
+  /** Diferencias de fecha, presencia o fuentes ya reconocidas: clave de fila → huella de lo que decían las fuentes (`Flags.signature`) */
+  acks: Record<string, string>
 }
 
 /** Qué cambió en la última carga de agenda/calendar. */
@@ -45,6 +47,10 @@ type Actions = {
   setEdit: (row: Row, field: Field, value: string) => void
   /** Me quedo con lo mío: lo escrito pasa a ser lo confirmado frente a lo que dicen hoy las fuentes. */
   keepMine: (key: string, conflicts: Conflict[]) => void
+  /** Reconozco las diferencias de la fila: dejan de avisar mientras las fuentes digan lo mismo que ahora. */
+  acknowledge: (key: string, signature: string) => void
+  /** Vuelve a avisar las diferencias de la fila. */
+  unacknowledge: (key: string) => void
   /** Uso lo de la agenda/el calendar: se descarta lo escrito en esos campos. */
   takeSource: (key: string, conflicts: Conflict[]) => void
   /** Una fila con trabajo manual que ya no está en las fuentes: llevarlo a la fila nueva / dejarla como agregada a mano / sacarla */
@@ -65,7 +71,7 @@ type Actions = {
   clearUserData: () => void
 }
 
-const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], ranges: {} }
+const emptyUser: UserData = { edits: {}, bases: {}, snaps: {}, order: {}, included: {}, manualRows: [], ranges: {}, acks: {} }
 
 /** Los campos de una edición, menos los que están en conflicto. */
 const withoutFields = (e: Edits[string] | undefined, conflicts: Conflict[]) => Object.fromEntries(Object.entries(e ?? {}).filter(([f]) => !conflicts.some((c) => c.field === f)))
@@ -78,6 +84,7 @@ const forget = (s: UserData, key: string, date: string): Partial<UserData> => ({
   bases: without(s.bases, key),
   snaps: without(s.snaps, key),
   included: without(s.included, key),
+  acks: without(s.acks, key),
   order: s.order[date] ? { ...s.order, [date]: s.order[date].filter((k) => k !== key) } : s.order,
 })
 
@@ -149,6 +156,8 @@ export const useStore = create<UserData & Actions>()(
         set((s) => ({ bases: { ...s.bases, [key]: { ...s.bases[key], ...Object.fromEntries(conflicts.map((c) => [c.field, c.now])) } } })),
       takeSource: (key, conflicts) =>
         set((s) => ({ edits: { ...s.edits, [key]: withoutFields(s.edits[key], conflicts) }, bases: { ...s.bases, [key]: withoutFields(s.bases[key], conflicts) } })),
+      acknowledge: (key, signature) => set((s) => ({ acks: { ...s.acks, [key]: signature } })),
+      unacknowledge: (key) => set((s) => ({ acks: without(s.acks, key) })),
       moveOrphan: (o) =>
         set((s) => {
           const to = o.movedTo

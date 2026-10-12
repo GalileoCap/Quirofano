@@ -39,10 +39,14 @@ export type Flags = {
   missing: Field[]
   /** Columnas a mano todavía vacías */
   pending: Field[]
-  /** La fila tiene un aviso del cruce */
+  /** La fila tiene un aviso del cruce (se silencia con las diferencias, que son su causa) */
   warning: boolean
   /** Por qué no está en el checklist (filas de "Sin incluir") */
   excluded?: Excluded['reason']
+  /** Huella de las diferencias reconocibles (presencia y fuentes) y de lo que dicen las fuentes; null si no hay nada que reconocer */
+  signature: string | null
+  /** Lo que se silenció porque la persona lo reconoció y las fuentes no cambiaron desde entonces */
+  acked?: { presence?: Presence; sources: (Field | 'date')[] }
 }
 
 function presenceOf(row: Row, excluded: Excluded['reason'] | undefined): Presence | undefined {
@@ -54,27 +58,45 @@ function presenceOf(row: Row, excluded: Excluded['reason'] | undefined): Presenc
   return undefined
 }
 
-export function rowFlags(row: Row, excluded?: Excluded['reason'], elsewhere: string[] = []): Flags {
+/** Lo que dicen las fuentes de la cirugía, sin la línea de la agenda (que se corre al insertar filas) ni lo escrito a mano. */
+function signatureOf(row: Row, presence: Presence | undefined, sources: Flags['sources'], elsewhere: string[]): string | null {
+  if (!presence && !sources.length) return null
+  const { agenda, event } = row.origin ?? {}
+  return JSON.stringify([
+    presence ?? null,
+    agenda && [agenda.date, ...SOURCE_FIELDS.map((f) => agendaValue(agenda, f))],
+    event && [event.date, ...SOURCE_FIELDS.map((f) => eventValue(event, f))],
+    elsewhere,
+  ])
+}
+
+/** `ack` es la huella que la persona reconoció para esta fila: si coincide con la de hoy, la presencia y las fuentes que no coinciden se silencian. */
+export function rowFlags(row: Row, excluded?: Excluded['reason'], elsewhere: string[] = [], ack?: string): Flags {
   const { agenda, event } = row.origin ?? {}
   const sources: Flags['sources'] = []
   if (agenda && event) {
     for (const f of SOURCE_FIELDS) if (disagree(agendaValue(agenda, f), eventValue(event, f))) sources.push(f)
     if (agenda.date !== event.date) sources.push('date')
   }
+  const presence = presenceOf(row, excluded)
+  const signature = signatureOf(row, presence, sources, elsewhere)
+  const acked = signature !== null && signature === ack
   return {
-    presence: presenceOf(row, excluded),
+    presence: acked ? undefined : presence,
     elsewhere,
     confirm: row.conflicts?.map((c) => c.field) ?? [],
-    sources,
+    sources: acked ? [] : sources,
     edited: row.src ? SOURCE_FIELDS.filter((f) => row[f] !== row.src![f]) : [],
     missing: REQUIRED_FIELDS.filter((f) => !row[f].trim()),
     pending: PENDING_FIELDS.filter((f) => !row[f].trim()),
-    warning: !!row.warning,
+    warning: !!row.warning && !acked,
     excluded,
+    signature,
+    acked: acked ? { presence, sources } : undefined,
   }
 }
 
-export const FILTERS = ['all', 'presence', 'confirm', 'sources', 'edited', 'missing', 'pending'] as const
+export const FILTERS = ['all', 'presence', 'confirm', 'sources', 'edited', 'acked', 'missing', 'pending'] as const
 export type Filter = (typeof FILTERS)[number]
 
 export const FILTER_LABELS: Record<Filter, string> = {
@@ -83,6 +105,7 @@ export const FILTER_LABELS: Record<Filter, string> = {
   confirm: 'Por confirmar',
   sources: 'Agenda ≠ calendar',
   edited: 'Editadas',
+  acked: 'Reconocidas',
   missing: 'Faltan datos',
   pending: 'Sin completar',
 }
@@ -103,6 +126,8 @@ export function inFilter(f: Flags, filter: Filter): boolean {
       return fieldSources(f).length > 0
     case 'edited':
       return f.edited.length > 0
+    case 'acked':
+      return f.acked !== undefined
     case 'missing':
       return !f.excluded && f.missing.length > 0
     case 'pending':
@@ -169,14 +194,20 @@ export function elsewhereDates(rows: Row[], excluded: Excluded[]): Map<string, s
   return out
 }
 
+/** Lo que se silenció por estar reconocido, con las mismas palabras que cuando avisaba. */
+export function ackedNotes(f: Flags): Note[] {
+  if (!f.acked) return []
+  return flagNotes({ ...f, presence: f.acked.presence, sources: f.acked.sources, acked: undefined }).filter((n) => n.kind === 'presence' || n.kind === 'sources')
+}
+
 /** Una fila con sus marcas, lista para mostrar. */
 export type Item = { row: Row; flags: Flags }
 
-/** Las filas del checklist y las de "Sin incluir", con sus marcas (y los otros días de las que se movieron). */
-export function itemsOf(rows: Row[], excluded: Excluded[]): Item[] {
+/** Las filas del checklist y las de "Sin incluir", con sus marcas (y los otros días de las que se movieron). `acks` son las diferencias que la persona ya reconoció. */
+export function itemsOf(rows: Row[], excluded: Excluded[], acks: Record<string, string> = {}): Item[] {
   const elsewhere = elsewhereDates(rows, excluded)
   return [
-    ...rows.map((row) => ({ row, flags: rowFlags(row, undefined, elsewhere.get(row.key)) })),
-    ...excluded.map(({ row, reason }) => ({ row, flags: rowFlags(row, reason, elsewhere.get(row.key)) })),
+    ...rows.map((row) => ({ row, flags: rowFlags(row, undefined, elsewhere.get(row.key), acks[row.key]) })),
+    ...excluded.map(({ row, reason }) => ({ row, flags: rowFlags(row, reason, elsewhere.get(row.key), acks[row.key]) })),
   ]
 }
