@@ -51,6 +51,9 @@ export async function loadAgenda(files: File[]): Promise<LoadResult> {
   const file = files[0]
   if (!file) return { ok: false, message: 'No elegiste ningún archivo.' }
   const text = await file.text()
+  // la cabecera de la hoja no lleva comas: si lleva tabulaciones es un TSV, y leído como CSV daría filas sin sentido que pisarían la agenda
+  if (text.split(/\r?\n/, 1)[0].includes('\t'))
+    return { ok: false, message: 'Ese archivo viene separado por tabulaciones (.tsv). En la hoja de cálculo bajalo como Valores separados por comas (.csv).' }
   const rows = parseAgenda(text)
   if (!rows.length || !/CIRUGIA/i.test(text.slice(0, 2000)))
     return { ok: false, message: 'Ese archivo no parece la agenda quirúrgica (.csv con las columnas del formulario).' }

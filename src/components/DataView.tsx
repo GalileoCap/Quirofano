@@ -44,7 +44,7 @@ export function AgendaCard() {
           </button>
         </div>
       )}
-      <FileDrop accept=".csv,text/csv" label={agenda ? 'Reemplazar la agenda (.csv)' : 'Cargar la agenda (.csv)'} onFiles={loadAgenda} />
+      <FileDrop accept=".csv,.tsv,text/csv,text/tab-separated-values" label={agenda ? 'Reemplazar la agenda (.csv)' : 'Cargar la agenda (.csv)'} onFiles={loadAgenda} />
     </Card>
   )
 }
