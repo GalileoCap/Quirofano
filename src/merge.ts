@@ -95,8 +95,8 @@ function candidates(e: CalEvent, agenda: AgendaRow[], used: Set<AgendaRow>) {
     const m = nameMatch(e.name, row.name)
     if (!m && !sameHc) continue
     const sameDate = row.date === e.date
-    // un nombre suelto ("GOMEZ") solo alcanza si la fecha o la HC también coinciden
-    if (!sameHc && m === 1 && tokens(e.name).length < 2 && !sameDate) continue
+    // un nombre de una palabra ("GOMEZ", "SD" de sin datos) solo alcanza si la fecha o la HC también coinciden
+    if (!sameHc && !sameDate && Math.min(tokens(e.name).length, tokens(row.name).length) < 2) continue
     const score = (sameHc ? 30 : 0) + m * 10 + (sameDate ? 5 : 0) + (normName(row.surgery) === normName(e.surgery) ? 1 : 0)
     out.push({ row, score, byHc: sameHc })
   }

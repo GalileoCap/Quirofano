@@ -175,3 +175,10 @@ test('un evento con la sigla EECC (extracapsular) pero sin formato se avisa en v
   const { problems } = classifyEvents(parseIcs(ics('AGENDA QUIRURGICA', [['20261106', 'BLANCO ANICETO EECC BROCHARD / DIB']])))
   assert.deepEqual(problems.map((p) => p.title), ['BLANCO ANICETO EECC BROCHARD / DIB'])
 })
+
+test('un nombre de una sola palabra ("SD") no cruza con una fila de la agenda de otra fecha', () => {
+  const agenda = parseAgenda([HEADER, '26/03/2026 16:40:10,12/06/2026,sd,-,30,ANTIANGIOGENICO,-,-,DERECHO,-,-,LIO,,LOCAL + APOYO,SI,,,-,'].join('\n'))
+  const { events } = classifyEvents(parseIcs(ics('AGENDA', [['20261106', 'GLAUCOMA I STENT / SD / IZQUIERDO']])))
+  const res = mergeChecklist({ agenda, events, problems: [], from: '2026-11-02', to: '2026-11-08' })
+  assert.deepEqual(res.rows.map((r) => [r.source, r.surgery, r.duration]), [['calendar', 'GLAUCOMA I STENT', '']])
+})
