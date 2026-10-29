@@ -8,6 +8,7 @@ import { useSources, useStore } from '../store.ts'
 import { itemsOf, type Filter } from '../overview.ts'
 import type { Row } from '../types.ts'
 import { weekDays } from '../merge.ts'
+import CompareDialog from './CompareDialog.tsx'
 import DetailDialog from './DetailDialog.tsx'
 import { AgendaCard, CalendarCard } from './DataView.tsx'
 import Icon from './Icon.tsx'
@@ -28,6 +29,7 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
   const [toast, setToast] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [mode, setMode] = useState<'resumen' | 'calendario'>('resumen')
+  const [comparing, setComparing] = useState(false)
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings, problems } = useChecklist(monday)
   const { setIncluded, addManualRow, removeManualRow, keepMine, news, setNews, ranges, setRange, acks, acknowledge, unacknowledge } = useStore()
@@ -136,6 +138,9 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
             <button className="btn btn-sm flex-1 sm:flex-none" disabled={!rows.length} onClick={download}>
               <Icon name="download" /> CSV
             </button>
+            <button className="btn btn-sm flex-1 sm:flex-none" title="Cargá un checklist armado afuera y mirá en qué difiere" onClick={() => setComparing(true)}>
+              <Icon name="upload" /> Comparar
+            </button>
           </div>
         </div>
       </div>
@@ -230,6 +235,7 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
       )}
       {sourcingRow && <SourceDialog row={sourcingRow} onClose={() => setSourcing(null)} />}
       {editingRow && <RowDialog row={editingRow} onClose={() => setEditing(null)} />}
+      {comparing && <CompareDialog monday={monday} setMonday={setMonday} rows={rows} excluded={excluded} range={range} onClose={() => setComparing(false)} />}
       {toast && (
         <div className="toast toast-center toast-bottom mb-16 sm:mb-4">
           <div className="alert alert-success">{toast}</div>

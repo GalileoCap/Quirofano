@@ -1,16 +1,23 @@
 # Quiro
 
-Ayuda para las tareas de una residente/un residente de oftalmología. Primera función: armar el checklist de cirugías de la semana cruzando la agenda quirúrgica (CSV de la hoja de cálculo) con el calendar (ICS de Google Calendar). El checklist se arma desde la app, así que no hay una planilla propia con la cual compararlo. La exportación a la planilla sigue igual.
+Ayuda para las tareas de una residente/un residente de oftalmología. Primera función: armar el checklist de cirugías de la semana cruzando la agenda quirúrgica (CSV de la hoja de cálculo) con el calendar (ICS de Google Calendar). El checklist se arma desde la app y la exportación a la planilla sigue igual. Uno armado afuera se puede cargar para compararlo (ver "Comparar con un checklist armado afuera").
 
 La interfaz y los textos van en español rioplatense (voseo: "elegí", "cargá"). Las respuestas a la persona que usa Quiro también.
 
 Las reglas de trabajo son las de session-kit (`~/.claude/CLAUDE.md`). Este archivo agrega las del proyecto. `.claude/settings.json` declara el plugin y `.claude/claude-kit.json` le dice a `session-tells` que lea también los comentarios de `src/` y `tests/`, en español.
 
+## Intent
+
+Los goals del dueño, los objetivos y las restricciones activos. Cada entrada es un archivo de [docs/intent/](docs/intent/INDEX.md) (`INDEX.md` lo escribe `session-intent index`), y `session-intent check` exige que esta lista sea la de las activas.
+
+- `G1` Ayudar a la residente con sus tareas, empezando por el checklist.
+- `O1` Lo que arma la app se puede controlar contra un checklist real.
+
 ## Comandos
 
 - `npm run dev`: Vite en el puerto 3003 (ver `.claude/launch.json`).
 - `npm test`: tests con el runner de Node (`tests/*.test.ts`, usan las fuentes `.ts` directo, por eso los imports llevan extensión). Cada test tiene 5 segundos de tope (`--test-timeout`). La salida va a un archivo, nunca a un pipe.
-- `npm run lint`: oxlint (`.oxlintrc.json`: correctness y suspicious como error) con `--deny-warnings`. Cero avisos, sin supresiones.
+- `npm run lint`: oxlint (`.oxlintrc.json`: correctness y suspicious como error) con `--deny-warnings`. Cero avisos, sin supresiones ([docs/suppressions.md](docs/suppressions.md) lo lista, `session-suppressions check`).
 - `npm run build`: lint, `tsc --noEmit` y build de Vite a `dist/`.
 
 Antes de dar algo por terminado: `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build` sin avisos, y mirarlo en el navegador (móvil y escritorio). Se dice qué escenarios se probaron y cuáles no.
@@ -89,6 +96,10 @@ Entre deploys se commitea pero no se pushea. Como la app guarda todo en el naveg
 - Horario: columna que se escribe a mano (regla 1). El cruce no la completa.
 - Exportación: mismo formato que la planilla "Checklist" (21 columnas, días del último al primero, encabezado `PREQUI`/`HC` solo en el primer día). El CSV sale sin marca BOM, con saltos `\r\n` y sin salto final, igual que el que baja Google Sheets (`tests/export.test.ts` fija esa forma).
 - Rango de días (`weekRange` en `src/checklist.ts`, selectores "Días" en `ChecklistView.tsx`): cada semana se arma por defecto de lunes a domingo. Se puede acotar (ej. lunes a viernes) y queda guardado por semana (`ranges` en `useStore`, también en el respaldo de Datos). Lo que cae fuera del rango no entra al checklist ni a "Sin incluir", y el CSV se llama con las fechas del rango.
+
+## Comparar con un checklist armado afuera
+
+Botón "Comparar" (`src/compare.ts`, `CompareDialog.tsx`; `A1`, comparar con un checklist cargado). Lee la planilla por el nombre de columna (NUMERO es la HC y HC es la casilla) o el CSV que exporta la app, empareja por HC y después por nombre en el mismo día, y no guarda el archivo. Nada viene tildado, y aplicar es escribir a mano (`A2`, aplicar es escribir a mano).
 
 ## Volver a cargar la agenda/el calendar durante la semana
 

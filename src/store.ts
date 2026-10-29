@@ -5,7 +5,7 @@ import type { RawEvent } from './ics.ts'
 import { SOURCES_MIGRATIONS, SOURCES_VERSION, USER_MIGRATIONS, USER_VERSION, blankFields, readPersisted, readSources, runMigrations, versionOf, type Persisted } from './persist.ts'
 import { snapOf, type Novelty, type Orphan } from './review.ts'
 import { NO_TASK, type TaskState } from './tasks.ts'
-import type { Conflict, Field, Row, Snap } from './types.ts'
+import type { Conflict, Field, Fields, Row, Snap } from './types.ts'
 
 export type CalendarFile = { name: string; events: RawEvent[] }
 
@@ -69,7 +69,8 @@ type Actions = {
   setIncluded: (row: Row, value: boolean) => void
   /** Arma el checklist de la semana de `monday` solo entre esos días; `null` vuelve a la semana entera. */
   setRange: (monday: string, range: DayRange | null) => void
-  addManualRow: (date: string) => string
+  /** Agrega una cirugía a mano ese día; `values` son los campos que ya trae (de un checklist cargado), si no queda vacía. */
+  addManualRow: (date: string, values?: Partial<Fields>) => string
   removeManualRow: (key: string) => void
   importUserData: (data: Partial<UserData>) => void
   /** Borra lo escrito a mano; la agenda y los calendarios quedan */
@@ -219,9 +220,9 @@ export const useStore = create<UserData & Actions>()(
         }),
       setIncluded: (row, value) =>
         set((s) => ({ included: { ...s.included, [row.key]: value }, snaps: s.snaps[row.key] || row.source === 'manual' ? s.snaps : { ...s.snaps, [row.key]: snapOf(row) } })),
-      addManualRow: (date) => {
+      addManualRow: (date, values = {}) => {
         const key = `manual-${crypto.randomUUID()}`
-        const row = { ...blankFields(), key, date, source: 'manual' as const }
+        const row = { ...blankFields(), ...values, key, date, source: 'manual' as const }
         set((s) => ({ manualRows: [...s.manualRows, row] }))
         return key
       },
