@@ -50,8 +50,11 @@ export type CalEvent = {
   description: string
 }
 
-/** Un evento de un calendario de cirugías que no tiene el formato esperado (se avisa en vez de ignorarlo). */
-export type CalProblem = { date: string; title: string; calendar: string; description: string }
+/**
+ * Un evento de un calendario de cirugías que no se pudo leer: se avisa siempre, nunca se ignora. `strong` si tiene algo
+ * de cirugía (una palabra quirúrgica, una HC, un teléfono, un ojo) o es del calendario de suspensiones.
+ */
+export type CalProblem = { date: string; title: string; calendar: string; description: string; strong: boolean }
 
 export type Source = 'both' | 'agenda' | 'calendar' | 'manual'
 

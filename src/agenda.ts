@@ -69,7 +69,8 @@ export function parseAgenda(text: string): AgendaRow[] {
   const out: AgendaRow[] = []
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i]
-    if (!clean(r[2]) && !clean(r[3])) continue
+    // solo se saltea lo que no tiene nada más que la marca temporal: una fila sin nombre ni HC entra igual y se ve que le faltan
+    if (r.slice(1).every((c) => !clean(c))) continue
     out.push({
       line: i + 1,
       stamp: parseDate(r[0] ?? ''),

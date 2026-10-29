@@ -1,5 +1,7 @@
 import { dayOfWeek } from '../dates.ts'
-import { DAY_LABELS, FIELD_LABELS, longDate } from '../format.ts'
+import { DAY_LABELS, FIELD_LABELS, longDate, shortDate } from '../format.ts'
+import { SURGERY_FIELDS } from '../merge.ts'
+import { agendaValue } from '../origin.ts'
 import { REQUIRED_FIELDS, ackedNotes, type Flags } from '../overview.ts'
 import { useStore } from '../store.ts'
 import type { Field, Row } from '../types.ts'
@@ -63,7 +65,11 @@ export default function DetailDialog({
   const moveRow = useStore((s) => s.moveRow)
   const keepMine = useStore((s) => s.keepMine)
   const takeSource = useStore((s) => s.takeSource)
-  const pos = dayRows.findIndex((r) => r.key === row.key)
+  const setEdit = useStore((s) => s.setEdit)
+  // una fila de la agenda de otra fecha: el cruce tomó solo quién es, y usar el resto es decisión de la persona
+  const other = row.origin?.event && row.origin.agenda?.date !== row.date ? row.origin.agenda : undefined
+  const otherFill = other ? SURGERY_FIELDS.filter((f) => agendaValue(other, f) && agendaValue(other, f) !== row[f]) : []
+  const pos =dayRows.findIndex((r) => r.key === row.key)
   const move = (dir: -1 | 1) => moveRow(row.date, dayRows.map((r) => r.key), row.key, dir)
 
   return (
@@ -115,6 +121,15 @@ export default function DetailDialog({
             <Icon name="warning" className="mt-px size-3.5 shrink-0 text-warning" />
             <span>{row.warning}</span>
           </p>
+        )}
+        {other && otherFill.length > 0 && (
+          <button
+            className="btn btn-xs mt-1.5"
+            title={`Escribe a mano, con lo de esa fila: ${otherFill.map((f) => FIELD_LABELS[f]).join(', ')}`}
+            onClick={() => otherFill.forEach((f) => setEdit(row, f, agendaValue(other, f)))}
+          >
+            Usar los datos de la agenda {other.date ? `del ${shortDate(other.date)}` : 'de esa fila'}
+          </button>
         )}
         {row.conflicts && (
           <div className="mt-3">

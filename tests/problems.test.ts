@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { mergeChecklist } from '../src/merge.ts'
-import { problemKey, problemSignature, problemText, splitProblems } from '../src/problems.ts'
+import { parseAgenda } from '../src/agenda.ts'
+import { agendaProblems, problemKey, problemSignature, problemText, splitProblems } from '../src/problems.ts'
 import { useStore } from '../src/store.ts'
 import type { AgendaRow, CalEvent, CalProblem } from '../src/types.ts'
 
@@ -18,6 +19,7 @@ const problem = (over: Partial<CalProblem> = {}): CalProblem => ({
   title: 'CATARAT BROCHARD ORTELLADO',
   calendar: 'AGENDA',
   description: 'DERECHO / 100/00',
+  strong: true,
   ...over,
 })
 
@@ -185,4 +187,10 @@ test('reconocer un evento ilegible en el store lo pasa a acked, deshacerlo lo de
   assert.deepEqual(splitProblems(list, useStore.getState().acks), { open: [], acked: list })
   useStore.getState().clearUserData()
   assert.deepEqual(splitProblems(list, useStore.getState().acks), { open: list, acked: [] })
+})
+
+test('una fila de la agenda reciente con la fecha rota se avisa; una vieja o con fecha legible no', () => {
+  const header = 'Marca temporal,Marca temporal,APELLIDO Y  NOMBRE  ,OBRA SOCIAL,DURACION,CIRUGIA'
+  const agenda = parseAgenda([header, '31/07/2026 10:00:00,ABARC,PAZ ANA,100/00,30,CHALAZION', '1/01/2025 10:00:00,0004,VIEJA,200/00,30,CATARATA', '31/07/2026 11:00:00,15/08/2026,BIEN,300/00,30,CATARATA'].join('\n'))
+  assert.deepEqual(agendaProblems(agenda, '2026-10-29').map((a) => a.name), ['PAZ ANA'])
 })

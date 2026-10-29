@@ -101,7 +101,8 @@ test('cada filtro deja pasar a las filas que corresponden', () => {
   // "Agenda ≠ calendar" es solo de campos; que esté en otro día o en una sola fuente es de fecha o presencia
   assert.deepEqual(names('sources'), ['GOMEZ ANA'])
   assert.deepEqual(names('presence'), ['LOPEZ RITA'])
-  assert.deepEqual(names('missing'), ['SIN AGENDA SIMON'])
+  // LOPEZ RITA está en la agenda otro día: de esa fila no sale la duración
+  assert.deepEqual(names('missing'), ['LOPEZ RITA', 'SIN AGENDA SIMON'])
   assert.deepEqual(names('confirm'), [])
 })
 

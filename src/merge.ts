@@ -69,6 +69,17 @@ function fromAgenda(a: AgendaRow, date: string, key: string, source: Row['source
   }
 }
 
+/** Los datos de una cirugía en particular: de una fila de la agenda de otra fecha no se toman (pueden ser de otra cirugía). */
+export const SURGERY_FIELDS = ['duration', 'surgery', 'surgeon', 'assistant', 'eye', 'diopters', 'anesthesia', 'notes'] as const satisfies readonly Field[]
+
+/** Una cirugía del calendar con solo los datos de la persona de una fila de la agenda de otra fecha. */
+function personFrom(a: AgendaRow, e: CalEvent, key: string): Row {
+  const row = emptyRow(e.date, key, 'both')
+  Object.assign(row, { name: a.name, hc: a.hc, phone: a.phone, contact: a.contact, dni: a.dni, line: a.line })
+  Object.assign(row, { surgery: e.surgery, surgeon: e.surgeon, assistant: e.assistant })
+  return row
+}
+
 /**
  * Deja en la fila de dónde salió: la fila de la agenda y/o el evento, y qué fuente puso cada campo.
  * Si los dos tienen el mismo valor se atribuye a la agenda, que es la que manda en el cruce.
@@ -169,7 +180,10 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
       continue
     }
     const a = best.row
-    const row = fromAgenda(a, e.date, uniqueKey(e.date, a), 'both')
+    const sameDay = a.date === e.date
+    const key = uniqueKey(e.date, a)
+    // una fila de otra fecha puede ser otra cirugía de la misma persona (el otro ojo): de ella sale solo quién es
+    const row = sameDay ? fromAgenda(a, e.date, key, 'both') : personFrom(a, e, key)
     // lo que la agenda no tiene y el calendar sí
     row.eye ||= e.eye
     row.diopters ||= e.diopters
@@ -177,17 +191,16 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
     row.phone ||= e.phone
     const notes: string[] = []
     if (e.hc && a.hc && normHc(e.hc) !== normHc(a.hc)) notes.push(`La HC del calendar (${e.hc}) no es la de la agenda (${a.hc}): ¿es la misma persona?`)
-    if (a.date !== e.date)
+    if (!sameDay)
       notes.push(
-        a.date
-          ? `La agenda tiene a este paciente el ${fmtDate(a.date)}/${a.date.slice(0, 4)}: revisá que los datos sean los de esta cirugía.`
-          : 'La fecha de la agenda para esta fila está rota: revisá que los datos sean los de esta cirugía.',
+        `${a.date ? `La agenda tiene a este paciente el ${fmtDate(a.date)}/${a.date.slice(0, 4)}` : 'La fecha de la agenda para este paciente está rota'}, no este día: ` +
+          'de esa fila tomé solo nombre, HC, teléfono, contacto y DNI. Si es la misma cirugía (reprogramada), usá sus datos desde el detalle.',
       )
     if (second && second.score === best.score && second.row.date === a.date)
       notes.push('Hay otra fila igual en la agenda: usé la más reciente.')
-    if (normName(e.surgeon) && normName(a.surgeon) && nameMatch(e.surgeon, a.surgeon) === 0)
+    if (sameDay && normName(e.surgeon) && normName(a.surgeon) && nameMatch(e.surgeon, a.surgeon) === 0)
       notes.push(`El calendar dice cirujano "${e.surgeon}" y la agenda "${a.surgeon}".`)
-    if (normName(e.surgery) && normName(a.surgery) && normName(e.surgery) !== normName(a.surgery))
+    if (sameDay && normName(e.surgery) && normName(a.surgery) && normName(e.surgery) !== normName(a.surgery))
       notes.push(`El calendar dice "${e.surgery}" y la agenda "${a.surgery}".`)
     if (notes.length) row.warning = notes.join(' ')
     rows.push(withOrigin(row, a, e, best.byHc ? 'hc' : 'name'))
@@ -197,7 +210,8 @@ export function mergeChecklist({ agenda, events, problems, from, to }: MergeInpu
   const seen = new Map<string, AgendaRow>()
   for (const a of agenda) {
     if (!inRange(a.date) || used.has(a) || suspendedRows.has(a)) continue
-    const dup = `${a.date}|${a.hc || normName(a.name)}|${normName(a.surgery)}`
+    // sin HC ni nombre no hay cómo saber si dos filas son la misma cirugía: entran las dos
+    const dup = `${a.date}|${a.hc || normName(a.name) || `línea ${a.line}`}|${normName(a.surgery)}`
     const prev = seen.get(dup)
     if (prev && (prev.stamp ?? '') >= (a.stamp ?? '')) continue
     seen.set(dup, a)

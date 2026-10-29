@@ -267,7 +267,8 @@ test('la nota de agenda ≠ calendar no menciona la fecha: sola no hay nota, y c
   const { rows } = week()
   const lopez = find(rows, 'LOPEZ RITA')
   // el cruce real: la agenda y el calendar dicen solo el día distinto
-  assert.deepEqual(flagNotes(rowFlags(lopez)).map((n) => n.text), ['Otro día: la agenda dice 13/10, el calendar 15/10'])
+  // la duración falta porque la fila de la agenda es de otro día y de ella sale solo quién es
+  assert.deepEqual(flagNotes(rowFlags(lopez)).map((n) => n.text), ['Otro día: la agenda dice 13/10, el calendar 15/10', 'Falta: Duración'])
   assert.equal(flagNotes(rowFlags(lopez)).some((n) => n.kind === 'sources'), false)
   const gomez = find(rows, 'GOMEZ ANA')
   assert.deepEqual(flagNotes({ ...rowFlags(gomez), sources: ['date', 'surgeon'] }).map((n) => n.text), ['Agenda ≠ calendar: Cirujano'])
@@ -278,8 +279,8 @@ test('con presencia y otras diferencias, la presencia va primero y las demás no
   const lopez = find(rows, 'LOPEZ RITA')
   const [editada] = applyEdits(rows, { [lopez.key]: { eye: 'IZQUIERDO', anesthesia: 'GENERAL' } }, { [lopez.key]: { anesthesia: lopez.anesthesia } }).filter((r) => r.name === 'LOPEZ RITA')
   const notes = flagNotes(rowFlags(editada))
-  assert.deepEqual(notes.map((n) => n.kind), ['presence', 'confirm', 'edited'])
-  assert.deepEqual(notes.map((n) => n.text), ['Otro día: la agenda dice 13/10, el calendar 15/10', 'Sin confirmar: Ojo', 'Editado: Anestesia'])
+  assert.deepEqual(notes.map((n) => n.kind), ['presence', 'confirm', 'edited', 'missing'])
+  assert.deepEqual(notes.map((n) => n.text), ['Otro día: la agenda dice 13/10, el calendar 15/10', 'Sin confirmar: Ojo', 'Editado: Anestesia', 'Falta: Duración'])
   // lo faltante se sigue avisando en las filas incluidas, después de la presencia
   const simon = find(rows, 'SIN AGENDA SIMON')
   assert.deepEqual(flagNotes(rowFlags(simon)).map((n) => n.text), ['Falta: HC, Ojo, Duración'])

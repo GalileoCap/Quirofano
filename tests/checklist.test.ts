@@ -96,8 +96,9 @@ test('mergeChecklist: cruza calendar y agenda, separa suspendidas y avisa lo que
   assert.equal(byName['PEREZ JUAN'].source, 'both')
   assert.equal(byName['PEREZ JUAN'].phone, '1111')
   assert.equal(byName['PEREZ JUAN'].warning, undefined)
-  // la fecha de la agenda está rota: se usa igual, con aviso
-  assert.equal(byName['REPROGRAMADA RITA'].duration, '90')
+  // la fecha de la agenda está rota: de esa fila sale solo quién es, con aviso
+  assert.equal(byName['REPROGRAMADA RITA'].phone, '5555')
+  assert.equal(byName['REPROGRAMADA RITA'].duration, '')
   assert.match(byName['REPROGRAMADA RITA'].warning!, /rota/)
   // en el calendar pero no en la agenda
   assert.equal(byName['SIN AGENDA SIMON'].source, 'calendar')
@@ -165,15 +166,46 @@ test('calendar real: la HC de la descripción cruza aunque el nombre esté mal e
   assert.deepEqual(res.excluded, [])
 })
 
-test('un evento con palabras de cirugía pero sin formato se avisa; el resto (feriados, simposios) se ignora', () => {
-  const { events, problems } = classifyEvents(parseIcs(ics('AGENDA', [['20261014', 'CATARAT BROCHARD ORTELLADO'], ['20261014', 'SIMPOSIO'], ['20261012', 'FERIADO']])))
+test('ningún evento sin formato se pierde: con algo de cirugía (palabra, HC, teléfono, ojo) avisa fuerte y el resto queda en la lista', () => {
+  const titles = [
+    'CATARAT BROCHARD ORTELLADO',
+    'BLANCO ANICETO EECC BROCHARD / DIB',
+    'PAZ ELENA - 164700/00 - Basocelular - ANESTESIA GENERAL',
+    'Ramon Diaz FO 1128000000',
+    'SOSA ANA - TRIAMCINOLONA SUBTENON OJO DERECHO',
+    'Lia Ruiz Chala, granu',
+    'VACACIONES',
+  ]
+  const raw = [...parseIcs(ics('AGENDA', titles.map((t) => ['20261014', t]))), ...parseIcs(ics('SUSPENSION QUIRURGICA', [['20261014', 'GIMENEZ']]))]
+  const { events, problems } = classifyEvents(raw)
   assert.equal(events.length, 0)
-  assert.deepEqual(problems.map((p) => p.title), ['CATARAT BROCHARD ORTELLADO'])
+  assert.deepEqual(problems.map((p) => [p.title, p.strong]), [...titles.map((t, i) => [t, i < 5]), ['GIMENEZ', true]])
 })
 
-test('un evento con la sigla EECC (extracapsular) pero sin formato se avisa en vez de perderse', () => {
-  const { problems } = classifyEvents(parseIcs(ics('AGENDA QUIRURGICA', [['20261106', 'BLANCO ANICETO EECC BROCHARD / DIB']])))
-  assert.deepEqual(problems.map((p) => p.title), ['BLANCO ANICETO EECC BROCHARD / DIB'])
+test('un evento cancelado o de un calendario que no es de cirugías sigue afuera', () => {
+  const raw = parseIcs(ics('Feriados en Argentina', [['20261014', 'FERIADO']]))
+  assert.deepEqual(classifyEvents(raw).problems, [])
+})
+
+test('una fila de la agenda sin nombre ni HC pero con datos entra igual, aunque haya dos iguales ese día', () => {
+  const agenda = parseAgenda(
+    [HEADER, '4/08/2026 10:04:32,11/08/2026,-,-,90,PLASTICA OCULAR PTERIGION,RECALDE,MATA,,,,,,,,,,,', '4/08/2026 10:06:00,11/08/2026,-,-,90,PLASTICA OCULAR PTERIGION,RECALDE,MATA,,,,,,,,,,,', '12/08/2024,,,,,,,,,,,,,,,,,,'].join('\n'),
+  )
+  const res = mergeChecklist({ agenda, events: [], problems: [], from: '2026-08-10', to: '2026-08-16' })
+  assert.deepEqual(res.rows.map((r) => [r.surgery, r.line]), [['PLASTICA OCULAR PTERIGION', 2], ['PLASTICA OCULAR PTERIGION', 3]])
+})
+
+test('de una fila de la agenda de otra fecha se toman solo los datos de la persona: el ojo y las dioptrías pueden ser de otra cirugía', () => {
+  const agenda = parseAgenda([HEADER, '1/05/2026 10:00:00,15/05/2026,PEREZ JUAN,100/00,60,CATARATA,DIAZ,LUNA,DERECHO,ESPOSA,1111,LIO,+21.00,LOCAL + APOYO,No,GANCHOS,70,123,'].join('\n'))
+  const { events } = classifyEvents(parseIcs(ics('AGENDA', [['20260902', 'CATARATA / PEREZ JUAN / ROLLAN / BELU']])))
+  const [row] = mergeChecklist({ agenda, events, problems: [], from: '2026-08-31', to: '2026-09-06' }).rows
+  const { name, hc, phone, contact, dni, surgery, surgeon, assistant, eye, diopters, duration, anesthesia, notes } = row
+  assert.deepEqual(
+    { name, hc, phone, contact, dni, surgery, surgeon, assistant, eye, diopters, duration, anesthesia, notes },
+    { name: 'PEREZ JUAN', hc: '100/00', phone: '1111', contact: 'ESPOSA', dni: '123', surgery: 'CATARATA', surgeon: 'ROLLAN', assistant: 'BELU', eye: '', diopters: '', duration: '', anesthesia: '', notes: '' },
+  )
+  assert.match(row.warning!, /15\/05\/2026/)
+  assert.equal(row.origin?.agenda?.line, 2)
 })
 
 test('un nombre de una sola palabra ("SD") no cruza con una fila de la agenda de otra fecha', () => {

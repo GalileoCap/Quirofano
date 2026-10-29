@@ -12,6 +12,8 @@ Los goals del dueño, los objetivos y las restricciones activos. Cada entrada es
 
 - `G1` Ayudar a la residente con sus tareas, empezando por el checklist.
 - `O1` Lo que arma la app se puede controlar contra un checklist real.
+- `O2` Ninguna entrada de la agenda o del calendar se pierde en silencio.
+- `O3` Cada cirugía del checklist lleva los datos de esa cirugía (propuesto).
 
 ## Comandos
 
@@ -74,7 +76,7 @@ Entre deploys se commitea pero no se pushea. Como la app guarda todo en el naveg
 
 ### Agenda
 
-`src/agenda.ts`. La cabecera del CSV está corrida. Columnas reales: 0 marca temporal · 1 fecha de la cirugía · 2 paciente · 3 HC · 4 duración · 5 cirugía · 6 cirujano · 7 ayudante · 8 ojo · 9 contacto · 10 teléfono · 11 insumo · 12 dioptrías · 13 anestesia · 14 pedido B · 15 observaciones · 16 edad · 17 DNI. La fecha (col. 1) tiene celdas rotas (`ABARC`, `01/062026`, años `0004`). El mismo paciente puede tener varias filas (reprogramaciones, cirugías de años anteriores).
+`src/agenda.ts`. La cabecera del CSV está corrida. Columnas reales: 0 marca temporal · 1 fecha de la cirugía · 2 paciente · 3 HC · 4 duración · 5 cirugía · 6 cirujano · 7 ayudante · 8 ojo · 9 contacto · 10 teléfono · 11 insumo · 12 dioptrías · 13 anestesia · 14 pedido B · 15 observaciones · 16 edad · 17 DNI. La fecha (col. 1) tiene celdas rotas (`ABARC`, `01/062026`, años `0004`). El mismo paciente puede tener varias filas (reprogramaciones, cirugías de años anteriores). Una fila sin nombre ni HC entra igual (se ve que le faltan), y una con la fecha rota cargada en los últimos 120 días se avisa arriba (`agendaProblems`).
 
 ### Calendar
 
@@ -82,13 +84,13 @@ Entre deploys se commitea pero no se pushea. Como la app guarda todo en el naveg
 
 - Las cirugías actuales están en el calendario `AGENDA` (el principal, mezclado con eventos personales). `AGENDA QUIRURGICA` es el viejo, con texto libre. Lo suspendido va a `SUSPENSION QUIRURGICA`. `Birthdays` se descarta al cargar.
 - Formato actual del título: `CIRUGÍA / PACIENTE / CIRUJANO / AYUDANTE`, y la descripción trae `OJO / DIOPTRÍAS / HC / TELÉFONO`. El formato viejo es `CIRUGÍA / CIRUJANO / AYUDANTE` con `[OJO /] PACIENTE / HC / TELÉFONO` en la descripción. Cada pedazo de la descripción se reconoce por su forma, no por su posición.
-- Un evento con palabras de cirugía pero sin formato legible (`CATARAT BROCHARD ORTELLADO`, `/CATABROCHARD/…`) se avisa arriba en vez de ignorarse. El aviso (`src/problems.ts`) tiene "Cargar a mano" (agrega una cirugía vacía ese día y abre el formulario, sin completar nada) y "Reconocer" (se guarda en `acks` con la huella del evento; vuelve a avisar si cambia su título o su descripción, y "Avisos reconocidos" permite volver a avisar). Un evento que salió del rango o se corrigió en el calendar deja de avisar solo.
+- Ningún evento de un calendario de cirugías se pierde en silencio (`A3`, nada se pierde en silencio). El que no se lee y tiene una señal de cirugía (palabra, HC, teléfono, ojo) o es una suspensión se avisa arriba. El resto (vacaciones, feriados, «Chala, granu») va a la lista desplegable de la semana. El aviso (`src/problems.ts`) tiene "Cargar a mano" (agrega una cirugía vacía ese día y abre el formulario, sin completar nada) y "Reconocer" (se guarda en `acks` con la huella del evento; vuelve a avisar si cambia su título o su descripción, y "Avisos reconocidos" permite volver a avisar). Un evento que salió del rango o se corrigió en el calendar deja de avisar solo.
 - Se guardan solo los eventos de los últimos 120 días.
 - El PDF que imprime Google Calendar corta los títulos, así que no se lee.
 
 ### Cruce
 
-`src/merge.ts`. El calendar manda sobre qué cirugías hay cada día y la agenda aporta los datos. Se cruza por HC (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar entra igual al checklist, y lo que está en el calendar y no en la agenda también. Estar en una sola fuente no es una diferencia ni se marca: el chip de origen ("Agenda L95" sin "+ Calendar") ya lo dice. Sin calendar para esas fechas se usa solo la agenda. "Sin incluir" queda para lo suspendido y lo que se sacó a mano. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
+`src/merge.ts`. El calendar manda sobre qué cirugías hay cada día y la agenda aporta los datos. Se cruza por HC (la descripción del evento la trae) y, si no, por nombre (tolera orden distinto y nombres incompletos), prefiriendo la fila con la misma fecha y, a igual puntaje, la carga más reciente. De una fila de otra fecha se toman solo nombre, HC, teléfono, contacto y DNI, porque puede ser otra cirugía de la misma persona (`A4`, de otra fecha solo la persona). El detalle ofrece "Usar los datos de la agenda del …". La misma cirugía en dos calendarios cuenta una vez. Lo que está en la agenda con fecha de la semana pero no en el calendar entra igual al checklist, y lo que está en el calendar y no en la agenda también. Estar en una sola fuente no es una diferencia ni se marca: el chip de origen ("Agenda L95" sin "+ Calendar") ya lo dice. Sin calendar para esas fechas se usa solo la agenda. "Sin incluir" queda para lo suspendido y lo que se sacó a mano. Todo lo que no se pudo cruzar bien se avisa en la fila, no se esconde.
 
 ### A mano, horario, exportación y rango
 

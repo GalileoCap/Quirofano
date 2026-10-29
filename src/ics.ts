@@ -51,8 +51,9 @@ export function parseIcs(text: string, fallbackName = ''): RawEvent[] {
 
 const IGNORED_CALENDAR = /feriado|festivo|holiday|cumplea/i
 const SUSPENSION = /suspens/i
-/** Palabras de una cirugía: un evento que las tiene pero no sigue el formato se avisa en vez de ignorarse. */
+/** Señales de una cirugía (palabras, una HC, un teléfono, un ojo): un evento ilegible que las tiene se avisa más fuerte. */
 const SURGERY_WORDS = /catarat|facoemulsif|faco\b|eecc\b|antiangio|aag\b|plastica|glaucoma|vitrect|retina|estrabismo|pterigion|chalazion|blefaro|ptosis|inyecci|trasplante/i
+const SURGERY_SIGNS = /\d{3,7}\s*[/:-]\s*\d{1,2}\b|\d{8,}|\b(OD|OI|AO|OJO|DERECHO|IZQUIERDO)\b/i
 
 const EYE = /^(DERECHO|IZQUIERDO|AMBOS OJOS|OD|OI|AO|OJO DERECHO|OJO IZQUIERDO)$/i
 const HC = /^(?:OS\s*)?(\d{3,7}(?:[/:-]\d{1,2})?)$/i
@@ -105,8 +106,11 @@ export function classifyEvents(raw: RawEvent[]): { events: CalEvent[]; problems:
       events.push({ ...base, ...details, surgery: '', name: parts[0], surgeon: '', assistant: '' })
     } else if (parts.length === 2 && parts[0] && info.name) {
       events.push({ ...base, ...details, surgery: parts[0], name: info.name, surgeon: clean(parts[1]), assistant: '' })
-    } else if (!suspension && SURGERY_WORDS.test(e.title)) {
-      problems.push({ date: e.date, title: e.title, calendar: e.calendar, description: e.description })
+    } else {
+      // ninguna entrada se pierde en silencio: lo que no se lee se avisa, y lo que tiene algo de cirugía más fuerte
+      const text = `${e.title} ${e.description}`
+      const strong = suspension || SURGERY_WORDS.test(text) || SURGERY_SIGNS.test(text)
+      problems.push({ date: e.date, title: e.title, calendar: e.calendar, description: e.description, strong })
     }
   }
   return { events, problems }
@@ -120,6 +124,7 @@ export function describeEvent(e: RawEvent): EventStatus {
   if (IGNORED_CALENDAR.test(e.calendar)) return { status: 'ignored', reason: 'Calendario que no es de cirugías' }
   const { events, problems } = classifyEvents([e])
   if (events[0]) return { status: events[0].kind, reason: events[0].kind === 'suspension' ? 'Suspensión' : 'Cirugía' }
-  if (problems[0]) return { status: 'problem', reason: 'Parece una cirugía pero no tiene el formato CIRUGÍA / PACIENTE / CIRUJANO' }
-  return { status: 'ignored', reason: 'No parece una cirugía' }
+  return problems[0].strong
+    ? { status: 'problem', reason: 'Parece una cirugía pero no tiene el formato CIRUGÍA / PACIENTE / CIRUJANO' }
+    : { status: 'problem', reason: 'No se leyó como cirugía: se avisa en la lista de la semana' }
 }

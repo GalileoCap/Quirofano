@@ -88,7 +88,8 @@ test('describeEvent explica qué pasó con cada evento, también con los que se 
   )
   assert.equal(describeEvent(ok).status, 'surgery')
   assert.equal(describeEvent(free).status, 'problem')
-  assert.equal(describeEvent(personal).status, 'ignored')
+  // un evento personal del calendario de cirugías tampoco se ignora: va a la lista de la semana
+  assert.match(describeEvent(personal).reason, /lista de la semana/)
   assert.equal(describeEvent({ ...ok, cancelled: true }).reason, 'Cancelado en el calendario')
   assert.equal(describeEvent({ ...ok, calendar: 'Días feriados' }).status, 'ignored')
   assert.equal(describeEvent({ ...ok, calendar: 'SUSPENSION QUIRURGICA' }).status, 'suspension')

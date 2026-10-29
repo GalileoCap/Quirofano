@@ -2,8 +2,8 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { sheetCsv, sheetTsv, weekRange } from '../checklist.ts'
 import { addDaysTo, dayOfWeek } from '../dates.ts'
 import { DAY_LABELS, shortDate } from '../format.ts'
-import { useChecklist, useOrphans } from '../hooks.ts'
-import { problemKey, problemSignature, problemText, splitProblems } from '../problems.ts'
+import { useAgenda, useChecklist, useOrphans } from '../hooks.ts'
+import { agendaProblemKey, agendaProblems, agendaProblemSignature, agendaProblemText, problemKey, problemSignature, problemText, splitProblems } from '../problems.ts'
 import { useSources, useStore } from '../store.ts'
 import { itemsOf, type Filter } from '../overview.ts'
 import type { Row } from '../types.ts'
@@ -22,6 +22,22 @@ import { NewsCard, Orphans } from './Review.tsx'
 // FullCalendar es lo más pesado de la app: se baja solo al abrir la vista Calendario
 const CalendarView = lazy(() => import('./CalendarView.tsx'))
 
+/** Lo que se puede hacer con algo que no se pudo leer: cargarlo a mano ese día (si se sabe cuál) o reconocerlo. */
+function ProblemActions({ onLoad, onAck }: { onLoad?: () => void; onAck: () => void }) {
+  return (
+    <>
+      {onLoad && (
+        <button className="btn btn-xs" title="Agrega una cirugía vacía ese día para que la cargues" onClick={onLoad}>
+          <Icon name="plus" /> Cargar a mano
+        </button>
+      )}
+      <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que cambie" onClick={onAck}>
+        Reconocer
+      </button>
+    </>
+  )
+}
+
 export default function ChecklistView({ monday, setMonday }: { monday: string; setMonday: (monday: string) => void }) {
   const [viewing, setViewing] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -32,6 +48,7 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
   const [comparing, setComparing] = useState(false)
   const hasSources = useSources((s) => !!s.agenda)
   const { rows, excluded, warnings, problems } = useChecklist(monday)
+  const agenda = useAgenda()
   const { setIncluded, addManualRow, removeManualRow, keepMine, news, setNews, ranges, setRange, acks, acknowledge, unacknowledge } = useStore()
   const range = weekRange(monday, ranges)
   const fullWeek = range.from === monday && range.to === addDaysTo(monday, 6)
@@ -39,6 +56,16 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
 
   const items = useMemo(() => itemsOf(rows, excluded, acks), [rows, excluded, acks])
   const unreadable = useMemo(() => splitProblems(problems, acks), [problems, acks])
+  const weak = unreadable.open.filter((p) => !p.strong)
+  const brokenAgenda = useMemo(() => {
+    const all = agendaProblems(agenda)
+    const isAcked = (a: (typeof all)[number]) => acks[agendaProblemKey(a)] === agendaProblemSignature(a)
+    return { open: all.filter((a) => !isAcked(a)), acked: all.filter(isAcked) }
+  }, [agenda, acks])
+  const acked = [
+    ...unreadable.acked.map((p) => ({ key: problemKey(p), text: problemText(p) })),
+    ...brokenAgenda.acked.map((a) => ({ key: agendaProblemKey(a), text: agendaProblemText(a) })),
+  ]
   const flagsOf = (key: string) => items.find((i) => i.row.key === key)?.flags
   // los días que se arman (el rango elegido de la semana), para poder agregar una cirugía en cualquiera
   const rangeDays = weekDays(monday).filter((d) => d >= range.from && d <= range.to)
@@ -156,26 +183,46 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
         </div>
       )}
 
-      {unreadable.open.map((p) => (
-        <div key={problemKey(p)} role="alert" className="alert alert-warning alert-soft flex-wrap items-center gap-2 text-sm text-base-content">
+      {unreadable.open
+        .filter((p) => p.strong)
+        .map((p) => (
+          <div key={problemKey(p)} role="alert" className="alert alert-warning alert-soft flex-wrap items-center gap-2 text-sm text-base-content">
+            <Icon name="warning" className="size-4" />
+            <span className="min-w-0 flex-1">{problemText(p)}</span>
+            <ProblemActions onLoad={() => setEditing(addManualRow(p.date))} onAck={() => acknowledge(problemKey(p), problemSignature(p))} />
+          </div>
+        ))}
+      {brokenAgenda.open.map((a) => (
+        <div key={agendaProblemKey(a)} role="alert" className="alert alert-warning alert-soft flex-wrap items-center gap-2 text-sm text-base-content">
           <Icon name="warning" className="size-4" />
-          <span className="min-w-0 flex-1">{problemText(p)}</span>
-          <button className="btn btn-xs" title="Agrega una cirugía vacía ese día para que la cargues" onClick={() => setEditing(addManualRow(p.date))}>
-            <Icon name="plus" /> Cargar a mano
-          </button>
-          <button className="btn btn-xs" title="Ya lo sé: no avisar hasta que el evento cambie en el calendar" onClick={() => acknowledge(problemKey(p), problemSignature(p))}>
-            Reconocer
-          </button>
+          <span className="min-w-0 flex-1">{agendaProblemText(a)}</span>
+          <ProblemActions onAck={() => acknowledge(agendaProblemKey(a), agendaProblemSignature(a))} />
         </div>
       ))}
-      {unreadable.acked.length > 0 && (
-        <details className="px-1 text-sm text-base-content/70">
-          <summary className="cursor-pointer">Avisos reconocidos ({unreadable.acked.length})</summary>
+      {weak.length > 0 && (
+        <details className="rounded-box border border-warning/60 bg-base-100 px-3 py-2 text-sm">
+          <summary className="cursor-pointer">
+            {weak.length} {weak.length === 1 ? 'evento del calendar no se leyó' : 'eventos del calendar no se leyeron'} como cirugía esta semana
+          </summary>
+          <p className="mt-1 text-xs text-base-content/60">No tienen el formato ni nada que parezca una cirugía. Si alguno lo es, cargalo a mano; si no, reconocelo.</p>
           <ul className="mt-1 flex flex-col gap-1">
-            {unreadable.acked.map((p) => (
+            {weak.map((p) => (
               <li key={problemKey(p)} className="flex flex-wrap items-center gap-2">
                 <span className="min-w-0 flex-1">{problemText(p)}</span>
-                <button className="btn btn-xs" onClick={() => unacknowledge(problemKey(p))}>
+                <ProblemActions onLoad={() => setEditing(addManualRow(p.date))} onAck={() => acknowledge(problemKey(p), problemSignature(p))} />
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {acked.length > 0 && (
+        <details className="px-1 text-sm text-base-content/70">
+          <summary className="cursor-pointer">Avisos reconocidos ({acked.length})</summary>
+          <ul className="mt-1 flex flex-col gap-1">
+            {acked.map(({ key, text }) => (
+              <li key={key} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1">{text}</span>
+                <button className="btn btn-xs" onClick={() => unacknowledge(key)}>
                   Volver a avisar
                 </button>
               </li>
