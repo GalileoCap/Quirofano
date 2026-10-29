@@ -1,6 +1,6 @@
 name: Deploy
 
-# Un deploy es un tag vX.Y.Z (ver "Deploy y versiones" en CLAUDE.md). Los pushes a main no publican nada.
+# Un deploy es un tag vX.Y.Z (ver la skill `deploy`, `.claude/skills/deploy/SKILL.md`). Los pushes a main no publican nada.
 on:
   push:
     tags: ['v*']
