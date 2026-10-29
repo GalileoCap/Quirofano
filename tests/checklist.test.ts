@@ -170,3 +170,8 @@ test('un evento con palabras de cirugía pero sin formato se avisa; el resto (fe
   assert.equal(events.length, 0)
   assert.deepEqual(problems.map((p) => p.title), ['CATARAT BROCHARD ORTELLADO'])
 })
+
+test('un evento con la sigla EECC (extracapsular) pero sin formato se avisa en vez de perderse', () => {
+  const { problems } = classifyEvents(parseIcs(ics('AGENDA QUIRURGICA', [['20261106', 'BLANCO ANICETO EECC BROCHARD / DIB']])))
+  assert.deepEqual(problems.map((p) => p.title), ['BLANCO ANICETO EECC BROCHARD / DIB'])
+})

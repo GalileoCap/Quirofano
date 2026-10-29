@@ -52,7 +52,7 @@ export function parseIcs(text: string, fallbackName = ''): RawEvent[] {
 const IGNORED_CALENDAR = /feriado|festivo|holiday|cumplea/i
 const SUSPENSION = /suspens/i
 /** Palabras de una cirugía: un evento que las tiene pero no sigue el formato se avisa en vez de ignorarse. */
-const SURGERY_WORDS = /catarat|facoemulsif|faco\b|antiangio|aag\b|plastica|glaucoma|vitrect|retina|estrabismo|pterigion|chalazion|blefaro|ptosis|inyecci|trasplante/i
+const SURGERY_WORDS = /catarat|facoemulsif|faco\b|eecc\b|antiangio|aag\b|plastica|glaucoma|vitrect|retina|estrabismo|pterigion|chalazion|blefaro|ptosis|inyecci|trasplante/i
 
 const EYE = /^(DERECHO|IZQUIERDO|AMBOS OJOS|OD|OI|AO|OJO DERECHO|OJO IZQUIERDO)$/i
 const HC = /^(?:OS\s*)?(\d{3,7}(?:[/:-]\d{1,2})?)$/i
