@@ -79,7 +79,7 @@ Solo se deploya cuando el dueño lo pide, con la skill `deploy` (`.claude/skills
 
 ## Comparar con un checklist armado afuera
 
-Botón "Comparar" (`src/compare.ts`, `CompareDialog.tsx`; `A1`, comparar con un checklist cargado). Lee la planilla por el nombre de columna (NUMERO es la HC y HC es la casilla) o el CSV que exporta la app, empareja por HC y después por nombre en el mismo día, y no guarda el archivo. Nada viene tildado, y aplicar es escribir a mano (`A2`, aplicar es escribir a mano).
+Botón "Comparar" (`src/compare.ts`, `CompareDialog.tsx`; `A1`, comparar con un checklist cargado). Lee la planilla por el nombre de columna (NUMERO es la HC y HC es la casilla) o el CSV que exporta la app, empareja por HC y después por nombre en el mismo día, y no guarda el archivo. Nada viene tildado, y aplicar es escribir a mano (`A2`, aplicar es escribir a mano). Las diferencias menores (columnas a mano, mismo valor escrito distinto, uno que dice más, vacío en el checklist) van plegadas, y lo que falta en la app se busca entre los eventos y filas que no se leyeron (`A5`, comparar prioriza lo que importa).
 
 ## Volver a cargar, origen de cada dato, vistas y tareas
 

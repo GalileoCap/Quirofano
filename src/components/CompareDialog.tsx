@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import type { DayRange } from '../checklist.ts'
-import { compareSheet, parseSheet, type Change, type Sheet } from '../compare.ts'
+import { compareSheet, parseSheet, type Change, type Minor, type Sheet, type Unread } from '../compare.ts'
 import { dayOfWeek, mondayOf } from '../dates.ts'
 import { DAY_LABELS, FIELD_LABELS, shortDate } from '../format.ts'
+import { agendaProblemKey, agendaProblemSignature, problemKey, problemSignature } from '../problems.ts'
 import { useStore } from '../store.ts'
-import type { Excluded, Row } from '../types.ts'
+import type { AgendaRow, CalProblem, Excluded, Row } from '../types.ts'
 import FileDrop from './FileDrop.tsx'
 
 /** El lunes de la semana que más cirugías tiene en el checklist cargado. */
@@ -19,10 +20,63 @@ const PRESENCE: Record<'missing' | 'extra', { label: string; badge: string }> = 
   extra: { label: 'Sobra en la app', badge: 'badge-warning' },
 }
 
+const MINOR_LABELS: Record<Minor, string> = {
+  manual: 'se escribe a mano',
+  format: 'escrito distinto',
+  detail: 'uno dice más',
+  blank: 'el checklist no lo trae',
+}
+
+const dayTitle = (date: string) => `${DAY_LABELS[dayOfWeek(date)]} ${shortDate(date)}`
+
+const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+
+/** Lo que no se pudo leer, dicho para la persona. */
+const unreadText = (u: Unread) =>
+  u.kind === 'calendar'
+    ? `No pude leer el evento «${u.problem.title}» (${u.problem.calendar}, ${dm(u.problem.date)}) y parece ser esta.`
+    : `La fila ${u.row.line} de la agenda tiene la fecha rota («${u.row.cells[1] ?? ''}») y parece ser esta.`
+
 /** Qué hace aplicar un cambio de presencia, dicho para la persona. */
 function presenceText(c: Exclude<Change, { kind: 'field' }>) {
   if (c.kind === 'extra') return { who: c.row, action: c.row.source === 'manual' ? 'Aplicar la borra.' : 'Aplicar la pasa a Sin incluir.' }
-  return { who: c.sheet.values, action: c.excluded ? 'Está en Sin incluir: aplicar la incluye.' : 'Aplicar la agrega a mano con los datos del checklist.' }
+  if (c.excluded) return { who: c.sheet.values, action: 'Está en Sin incluir: aplicar la incluye.' }
+  if (c.unread) return { who: c.sheet.values, action: `${unreadText(c.unread)} Aplicar la agrega a mano con los datos del checklist y reconoce el aviso.` }
+  return { who: c.sheet.values, action: 'Aplicar la agrega a mano con los datos del checklist.' }
+}
+
+/** Un campo distinto: lo de la app y lo del checklist. */
+function FieldLine({ c, checked, onToggle }: { c: Extract<Change, { kind: 'field' }>; checked: boolean; onToggle: () => void }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2">
+      <input type="checkbox" className="checkbox checkbox-sm mt-0.5" checked={checked} onChange={onToggle} />
+      <span className="min-w-0 flex-1">
+        {FIELD_LABELS[c.field]}: app {c.mine ? <q>{c.mine}</q> : <i className="text-base-content/60">vacío</i>} → checklist{' '}
+        {c.theirs ? <q className="font-semibold">{c.theirs}</q> : <i className="font-semibold">vacío</i>}
+        {c.minor && <span className="ml-1.5 text-xs text-base-content/60">({MINOR_LABELS[c.minor]})</span>}
+      </span>
+    </label>
+  )
+}
+
+type FieldChange = Extract<Change, { kind: 'field' }>
+
+/** Los campos distintos de cada cirugía, agrupados por fila de la app. */
+function FieldRows({ changes, selected, toggle }: { changes: FieldChange[]; selected: Set<string>; toggle: (id: string) => void }) {
+  const rows = [...new Set(changes.map((c) => c.row))]
+  return rows.map((r) => (
+    <div key={r.key} className="flex flex-col gap-1 rounded-box bg-base-200 p-2 text-sm">
+      <span className="font-semibold">
+        {r.name || 'Sin nombre'}
+        {r.surgery && <span className="font-normal"> · {r.surgery}</span>}
+      </span>
+      {changes
+        .filter((c) => c.row === r)
+        .map((c) => (
+          <FieldLine key={c.id} c={c} checked={selected.has(c.id)} onToggle={() => toggle(c.id)} />
+        ))}
+    </div>
+  ))
 }
 
 /**
@@ -35,6 +89,8 @@ export default function CompareDialog({
   rows,
   excluded,
   range,
+  problems,
+  brokenAgenda,
   onClose,
 }: {
   monday: string
@@ -42,12 +98,16 @@ export default function CompareDialog({
   rows: Row[]
   excluded: Excluded[]
   range: DayRange
+  /** Los eventos del calendar de la semana que no se pudieron leer */
+  problems: CalProblem[]
+  /** Las filas de la agenda con la fecha rota */
+  brokenAgenda: AgendaRow[]
   onClose: () => void
 }) {
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [applied, setApplied] = useState<string | null>(null)
-  const comparison = useMemo(() => (sheet ? compareSheet(sheet, rows, excluded, range) : null), [sheet, rows, excluded, range])
+  const comparison = useMemo(() => (sheet ? compareSheet(sheet, rows, excluded, range, { problems, agenda: brokenAgenda }) : null), [sheet, rows, excluded, range, problems, brokenAgenda])
 
   const load = async (files: File[]) => {
     const file = files[0]
@@ -71,6 +131,9 @@ export default function CompareDialog({
 
   const changes = comparison?.changes ?? []
   const chosen = changes.filter((c) => selected.has(c.id))
+  // las menores van aparte y plegadas: no dicen que la app armó mal la cirugía
+  const major = changes.filter((c) => c.kind !== 'field' || !c.minor)
+  const minor = changes.filter((c): c is FieldChange => c.kind === 'field' && !!c.minor)
 
   const apply = () => {
     const st = useStore.getState()
@@ -78,7 +141,11 @@ export default function CompareDialog({
       if (c.kind === 'field') st.setEdit(c.row, c.field, c.theirs)
       else if (c.kind === 'missing') {
         if (c.excluded) st.setIncluded(c.excluded, true)
-        else st.addManualRow(c.date, c.sheet.values)
+        else {
+          st.addManualRow(c.date, c.sheet.values)
+          if (c.unread?.kind === 'calendar') st.acknowledge(problemKey(c.unread.problem), problemSignature(c.unread.problem))
+          else if (c.unread) st.acknowledge(agendaProblemKey(c.unread.row), agendaProblemSignature(c.unread.row))
+        }
       } else if (c.row.source === 'manual') st.removeManualRow(c.row.key)
       else st.setIncluded(c.row, false)
     }
@@ -86,7 +153,8 @@ export default function CompareDialog({
     setSelected(new Set())
   }
 
-  const days = [...new Set(changes.map((c) => c.date))]
+  const days = [...new Set(major.map((c) => c.date))]
+  const minorDays = [...new Set(minor.map((c) => c.date))]
 
   return (
     <dialog className="modal modal-open modal-bottom sm:modal-middle" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -102,7 +170,9 @@ export default function CompareDialog({
           <>
             <div className="flex flex-col gap-1 text-sm">
               <p>
-                {comparison.equal} {comparison.equal === 1 ? 'cirugía igual' : 'cirugías iguales'} · {changes.length} {changes.length === 1 ? 'diferencia' : 'diferencias'}
+                {comparison.equal} {comparison.equal === 1 ? 'cirugía igual' : 'cirugías iguales'} · {comparison.minorOnly} solo con diferencias menores · {major.length}{' '}
+                {major.length === 1 ? 'diferencia' : 'diferencias'}
+                {minor.length > 0 && <span className="text-base-content/60"> (y {minor.length} menores)</span>}
               </p>
               {sheet.ignored.length > 0 && <p className="text-xs text-base-content/60">No se comparan (la app no tiene esas columnas): {sheet.ignored.join(', ')}.</p>}
               {comparison.outside.length > 0 && (
@@ -120,7 +190,7 @@ export default function CompareDialog({
 
             {changes.length > 0 && (
               <div className="flex gap-2">
-                <button className="btn btn-xs" onClick={() => setSelected(new Set(changes.map((c) => c.id)))}>
+                <button className="btn btn-xs" disabled={!major.length} onClick={() => setSelected((s) => new Set([...s, ...major.map((c) => c.id)]))}>
                   Tildar todo
                 </button>
                 <button className="btn btn-xs btn-ghost" disabled={!selected.size} onClick={() => setSelected(new Set())}>
@@ -130,13 +200,10 @@ export default function CompareDialog({
             )}
 
             {days.map((date) => {
-              const today = changes.filter((c) => c.date === date)
-              const fieldRows = [...new Set(today.flatMap((c) => (c.kind === 'field' ? [c.row] : [])))]
+              const today = major.filter((c) => c.date === date)
               return (
                 <section key={date} className="flex flex-col gap-1.5">
-                  <h4 className="font-display text-base font-semibold italic">
-                    {DAY_LABELS[dayOfWeek(date)]} {shortDate(date)}
-                  </h4>
+                  <h4 className="font-display text-base font-semibold italic">{dayTitle(date)}</h4>
                   {today.map((c) => {
                     if (c.kind === 'field') return null
                     const { who, action } = presenceText(c)
@@ -153,30 +220,31 @@ export default function CompareDialog({
                       </label>
                     )
                   })}
-                  {fieldRows.map((r) => (
-                    <div key={r.key} className="flex flex-col gap-1 rounded-box bg-base-200 p-2 text-sm">
-                      <span className="font-semibold">
-                        {r.name || 'Sin nombre'}
-                        {r.surgery && <span className="font-normal"> · {r.surgery}</span>}
-                      </span>
-                      {today.map(
-                        (c) =>
-                          c.kind === 'field' &&
-                          c.row === r && (
-                            <label key={c.id} className="flex cursor-pointer items-start gap-2">
-                              <input type="checkbox" className="checkbox checkbox-sm mt-0.5" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
-                              <span className="min-w-0 flex-1">
-                                {FIELD_LABELS[c.field]}: app {c.mine ? <q>{c.mine}</q> : <i className="text-base-content/60">vacío</i>} → checklist{' '}
-                                {c.theirs ? <q className="font-semibold">{c.theirs}</q> : <i className="font-semibold">vacío</i>}
-                              </span>
-                            </label>
-                          ),
-                      )}
-                    </div>
-                  ))}
+                  <FieldRows changes={today.filter((c) => c.kind === 'field')} selected={selected} toggle={toggle} />
                 </section>
               )
             })}
+
+            {minor.length > 0 && (
+              <details className="rounded-box border border-base-300 px-3 py-2 text-sm">
+                <summary className="cursor-pointer">
+                  {minor.length} {minor.length === 1 ? 'diferencia menor' : 'diferencias menores'}
+                </summary>
+                <p className="mt-1 text-xs text-base-content/60">
+                  No dicen que la app armó mal la cirugía: columnas que se escriben a mano, el mismo valor escrito distinto, uno que dice más que el otro o algo que el checklist no trae.
+                  "Tildar todo" no las tilda.
+                </p>
+                <button className="btn btn-xs mt-2" onClick={() => setSelected((s) => new Set([...s, ...minor.map((c) => c.id)]))}>
+                  Tildar las menores
+                </button>
+                {minorDays.map((date) => (
+                  <section key={date} className="mt-2 flex flex-col gap-1.5">
+                    <h4 className="font-display text-sm font-semibold italic">{dayTitle(date)}</h4>
+                    <FieldRows changes={minor.filter((c) => c.date === date)} selected={selected} toggle={toggle} />
+                  </section>
+                ))}
+              </details>
+            )}
           </>
         )}
 

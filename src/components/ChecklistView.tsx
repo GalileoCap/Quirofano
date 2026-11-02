@@ -282,7 +282,18 @@ export default function ChecklistView({ monday, setMonday }: { monday: string; s
       )}
       {sourcingRow && <SourceDialog row={sourcingRow} onClose={() => setSourcing(null)} />}
       {editingRow && <RowDialog row={editingRow} onClose={() => setEditing(null)} />}
-      {comparing && <CompareDialog monday={monday} setMonday={setMonday} rows={rows} excluded={excluded} range={range} onClose={() => setComparing(false)} />}
+      {comparing && (
+        <CompareDialog
+          monday={monday}
+          setMonday={setMonday}
+          rows={rows}
+          excluded={excluded}
+          range={range}
+          problems={problems}
+          brokenAgenda={[...brokenAgenda.open, ...brokenAgenda.acked]}
+          onClose={() => setComparing(false)}
+        />
+      )}
       {toast && (
         <div className="toast toast-center toast-bottom mb-16 sm:mb-4">
           <div className="alert alert-success">{toast}</div>
